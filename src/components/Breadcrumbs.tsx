@@ -1,180 +1,220 @@
 import { Breadcrumbs as MuiBreadcrumbs, Link, Typography, Box } from '@mui/material';
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams, useMatches } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import HomeIcon from '@mui/icons-material/Home';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { useQuery } from '@tanstack/react-query';
+import { routeConfig } from '@config/router';
 
 // Types for our breadcrumb structure
-type BreadcrumbSegment = {
+type BreadcrumbItem = {
+  key: string;
   label: string;
   path: string;
-  dynamic?: boolean;
-  fetchKey?: string;
+  isDynamic: boolean;
+};
+
+// Helper function to determine if a segment is a parameter
+const isParameterSegment = (segment: string): boolean => segment.startsWith(':');
+
+// Parse a route pattern like '/products/:productId' into segments
+const parseRoutePattern = (pattern: string): string[] => {
+  return pattern.split('/').filter(Boolean);
 };
 
 // Mock API functions - replace with real API calls in production
-const fetchProductName = async (productId: string) => {
+const fetchEntityName = async (type: string, id: string) => {
   // In a real app, this would be an actual API call
-  // return axios.get(`/api/products/${productId}`).then(res => res.data.name);
+  // return axios.get(`/api/${type}/${id}`).then(res => res.data.name);
   
   // Simulating API response delay
   return new Promise<string>((resolve) => {
     setTimeout(() => {
-      resolve(`Product ${productId}`);
+      if (type === 'products') {
+        resolve(`Product ${id}`);
+      } else if (type === 'services') {
+        resolve(`Service ${id}`);
+      } else {
+        resolve(`${type} ${id}`);
+      }
     }, 300);
   });
-};
-
-const fetchServiceName = async (serviceId: string) => {
-  // In a real app, this would be an actual API call
-  // return axios.get(`/api/services/${serviceId}`).then(res => res.data.name);
-  
-  // Simulating API response delay
-  return new Promise<string>((resolve) => {
-    setTimeout(() => {
-      resolve(`Service ${serviceId}`);
-    }, 300);
-  });
-};
-
-// Map of routes to their breadcrumb configurations
-const ROUTE_CONFIG: Record<string, BreadcrumbSegment[]> = {
-  '/': [{ label: 'home', path: '/' }],
-  '/about': [
-    { label: 'home', path: '/' },
-    { label: 'about', path: '/about' }
-  ],
-  '/dashboard': [
-    { label: 'home', path: '/' },
-    { label: 'dashboard', path: '/dashboard' }
-  ],
-  '/demos/form': [
-    { label: 'home', path: '/' },
-    { label: 'dashboard', path: '/dashboard' },
-    { label: 'form', path: '/demos/form' }
-  ],
-  '/products': [
-    { label: 'home', path: '/' },
-    { label: 'products', path: '/products' }
-  ],
-  '/products/:productId': [
-    { label: 'home', path: '/' },
-    { label: 'products', path: '/products' },
-    { label: 'productName', path: '/products/:productId', dynamic: true, fetchKey: 'productId' }
-  ],
-  '/services': [
-    { label: 'home', path: '/' },
-    { label: 'services', path: '/services' }
-  ],
-  '/services/:serviceId': [
-    { label: 'home', path: '/' },
-    { label: 'services', path: '/services' },
-    { label: 'serviceName', path: '/services/:serviceId', dynamic: true, fetchKey: 'serviceId' }
-  ],
 };
 
 /**
- * A breadcrumb component that supports dynamic values from route parameters.
- * It can fetch entity names from API calls based on route parameters.
+ * A breadcrumb component that dynamically generates breadcrumbs based on the current route
+ * and router configuration. It can fetch entity names from API calls based on route parameters.
  */
 const Breadcrumbs = () => {
   const location = useLocation();
   const params = useParams();
   const { t } = useTranslation();
+  const matches = useMatches();
   
-  // Find matching route configuration
-  const findMatchingRoute = (): string => {
-    // Try to find an exact match first
-    if (ROUTE_CONFIG[location.pathname]) {
-      return location.pathname;
-    }
-
-    // Try to find a parameterized match
-    const pathSegments = location.pathname.split('/').filter(Boolean);
+  // Extract current path segments
+  const currentPathSegments = location.pathname.split('/').filter(Boolean);
+  
+  // Find all routes that match our current path pattern
+  const generateBreadcrumbs = (): BreadcrumbItem[] => {
+    // Always include home
+    const breadcrumbs: BreadcrumbItem[] = [
+      { key: 'home', label: t('navigation.home'), path: '/', isDynamic: false }
+    ];
     
-    for (const [routePath, config] of Object.entries(ROUTE_CONFIG)) {
-      const routeSegments = routePath.split('/').filter(Boolean);
-      
-      if (pathSegments.length !== routeSegments.length) {
-        continue;
-      }
-      
-      let isMatch = true;
-      for (let i = 0; i < routeSegments.length; i++) {
-        if (routeSegments[i].startsWith(':')) {
-          // This is a parameter segment, so it matches any value
-          continue;
+    if (currentPathSegments.length === 0) {
+      return breadcrumbs;
+    }
+    
+    // Build up the breadcrumb path for each matched segment
+    let currentPath = '';
+    
+    // Use the routeConfig to determine breadcrumb structure
+    // Get all route definitions that match a segment of our current path
+    const matchedRoutes: { route: any; path: string; hasDynamicParam: boolean }[] = [];
+    
+    // Recursively search for matching routes in the route configuration
+    const findMatchingRoutes = (routes: any[], basePath = '') => {
+      routes.forEach(route => {
+        if (route.path) {
+          const fullPath = route.path.startsWith('/')
+            ? route.path
+            : `${basePath}/${route.path}`;
+            
+          // Check if this route matches a segment of our current path
+          const routeSegments = parseRoutePattern(fullPath);
+          const hasDynamicParam = routeSegments.some(isParameterSegment);
+          
+          // For routes with parameters, check if they match the pattern
+          let isMatch = false;
+          
+          if (hasDynamicParam) {
+            // For dynamic routes, compare segment lengths and non-param segments
+            if (routeSegments.length <= currentPathSegments.length) {
+              isMatch = routeSegments.every((segment, i) => {
+                if (isParameterSegment(segment)) {
+                  // Parameter segments automatically match
+                  return true;
+                }
+                return segment === currentPathSegments[i];
+              });
+            }
+          } else {
+            // For static routes, check if they're an exact prefix match
+            const pathPattern = fullPath.endsWith('/') ? fullPath.slice(0, -1) : fullPath;
+            isMatch = location.pathname.startsWith(pathPattern);
+          }
+          
+          if (isMatch) {
+            matchedRoutes.push({ 
+              route, 
+              path: fullPath, 
+              hasDynamicParam 
+            });
+          }
         }
         
-        if (routeSegments[i] !== pathSegments[i]) {
-          isMatch = false;
-          break;
+        // Recursively search children
+        if (route.children) {
+          const childBasePath = route.path || basePath;
+          findMatchingRoutes(route.children, childBasePath);
         }
+      });
+    };
+    
+    findMatchingRoutes(routeConfig);
+    
+    // Sort matched routes by path length to get the most specific matches first
+    matchedRoutes.sort((a, b) => {
+      // Compare by path segment count
+      const aSegments = a.path.split('/').filter(Boolean).length;
+      const bSegments = b.path.split('/').filter(Boolean).length;
+      return bSegments - aSegments;
+    });
+    
+    // Use matches to build breadcrumbs
+    for (let i = 0; i < currentPathSegments.length; i++) {
+      const segment = currentPathSegments[i];
+      currentPath += `/${segment}`;
+      
+      // Find the matching route for this segment
+      const matchingRoute = matchedRoutes.find(match => {
+        const routeSegments = parseRoutePattern(match.path);
+        
+        // Check if this route matches the current segment level
+        if (routeSegments.length === i + 1) {
+          const lastSegment = routeSegments[i];
+          return lastSegment === segment || isParameterSegment(lastSegment);
+        }
+        return false;
+      });
+      
+      // Determine if this is a dynamic segment
+      const isDynamicSegment = !!matchingRoute?.hasDynamicParam && 
+                               Object.values(params).includes(segment);
+      
+      // Get breadcrumb label from route configuration or fallback to segment name
+      let breadcrumbKey = segment;
+      if (matchingRoute?.route.breadcrumb) {
+        breadcrumbKey = matchingRoute.route.breadcrumb;
       }
       
-      if (isMatch) {
-        return routePath;
-      }
-    }
-    
-    return '/'; // Default to home if no match found
-  };
-  
-  const matchedRoute = findMatchingRoute();
-  const breadcrumbs = ROUTE_CONFIG[matchedRoute] || [];
-  
-  // Fetch dynamic data if needed
-  const dynamicSegment = breadcrumbs.find(segment => segment.dynamic && segment.fetchKey);
-  const fetchKey = dynamicSegment?.fetchKey;
-  const paramValue = fetchKey ? params[fetchKey] as string : undefined;
-  
-  const { data: entityName, isLoading } = useQuery({
-    queryKey: [fetchKey, paramValue],
-    queryFn: async () => {
-      if (!fetchKey || !paramValue) return null;
-      
-      // Choose the appropriate fetch function based on the fetchKey
-      if (fetchKey === 'productId') {
-        return fetchProductName(paramValue);
-      } else if (fetchKey === 'serviceId') {
-        return fetchServiceName(paramValue);
-      }
-      
-      return null;
-    },
-    enabled: !!fetchKey && !!paramValue,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-  
-  // Replace path parameters with actual values and translate labels
-  const processedBreadcrumbs = breadcrumbs.map(segment => {
-    let path = segment.path;
-    
-    // Get translation for the label
-    // Non-dynamic segments use the translation key
-    let label = segment.dynamic ? '' : t(`navigation.${segment.label}`);
-    
-    // Replace route parameters with actual values
-    if (segment.path.includes(':')) {
-      Object.entries(params).forEach(([key, value]) => {
-        path = path.replace(`:${key}`, value || '');
+      breadcrumbs.push({
+        key: breadcrumbKey,
+        label: isDynamicSegment ? '' : t(`navigation.${breadcrumbKey}`),
+        path: currentPath,
+        isDynamic: isDynamicSegment,
       });
     }
     
-    // Replace dynamic label with fetched entity name
-    if (segment.dynamic && segment.fetchKey && segment.fetchKey === fetchKey) {
-      if (isLoading) {
-        label = t('common.loading');
-      } else if (entityName) {
-        label = entityName;
-      } else {
-        // Fallback to translation if no dynamic name is available
-        label = t(`navigation.${segment.label}`);
-      }
-    }
+    return breadcrumbs;
+  };
+  
+  // Generate the breadcrumbs based on the current route
+  const breadcrumbs = generateBreadcrumbs();
+  
+  // Find dynamic segments that need data fetching
+  const dynamicSegment = breadcrumbs.find(item => item.isDynamic);
+  const dynamicIndex = dynamicSegment ? breadcrumbs.indexOf(dynamicSegment) : -1;
+  
+  // Determine entity type and ID for API fetching
+  // In real applications, this should be more robust
+  let entityType: string | null = null;
+  let entityId: string | null = null;
+  
+  if (dynamicIndex > 0) {
+    // The previous segment path is typically the collection type (e.g., "products")
+    // Extract it from path like "/products/123" → "products"
+    const dynamicPath = breadcrumbs[dynamicIndex].path;
+    const dynamicPathSegments = dynamicPath.split('/').filter(Boolean);
     
-    return { ...segment, path, label };
+    // The actual ID is the last segment
+    entityId = dynamicPathSegments[dynamicPathSegments.length - 1];
+    
+    // The entity type is the second-to-last segment
+    if (dynamicPathSegments.length > 1) {
+      entityType = dynamicPathSegments[dynamicPathSegments.length - 2];
+    }
+  }
+  
+  // Fetch dynamic entity name if needed
+  const { data: entityName, isLoading } = useQuery({
+    queryKey: ['entity', entityType, entityId],
+    queryFn: () => fetchEntityName(entityType!, entityId!),
+    enabled: !!entityType && !!entityId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+  
+  // Process breadcrumbs with dynamic data
+  const processedBreadcrumbs = breadcrumbs.map(breadcrumb => {
+    if (breadcrumb.isDynamic) {
+      return {
+        ...breadcrumb,
+        label: isLoading 
+          ? t('common.loading') 
+          : entityName || t(`navigation.${breadcrumb.key}`)
+      };
+    }
+    return breadcrumb;
   });
   
   return (
@@ -182,6 +222,9 @@ const Breadcrumbs = () => {
       <MuiBreadcrumbs 
         separator={<NavigateNextIcon fontSize="small" />} 
         aria-label="breadcrumb"
+        maxItems={8}
+        itemsBeforeCollapse={2}
+        itemsAfterCollapse={2}
       >
         {processedBreadcrumbs.map((crumb, index) => {
           const isLast = index === processedBreadcrumbs.length - 1;
