@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import useStore from '@store/useStore';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import Breadcrumbs from '@components/Breadcrumbs';
 
 const MainLayout = () => {
   const { t } = useTranslation();
@@ -26,6 +27,12 @@ const MainLayout = () => {
             <Typography component={RouterLink} to="/dashboard" color="inherit" sx={{ textDecoration: 'none' }}>
               {t('navigation.dashboard')}
             </Typography>
+            <Typography component={RouterLink} to="/products" color="inherit" sx={{ textDecoration: 'none' }}>
+              {t('navigation.products')}
+            </Typography>
+            <Typography component={RouterLink} to="/services" color="inherit" sx={{ textDecoration: 'none' }}>
+              {t('navigation.services')}
+            </Typography>
           </Box>
           <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
             {theme === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
@@ -33,6 +40,7 @@ const MainLayout = () => {
         </Toolbar>
       </AppBar>
       <Container component="main" sx={{ flex: 1, py: 3 }}>
+        <Breadcrumbs />
         <Outlet />
       </Container>
     </Box>

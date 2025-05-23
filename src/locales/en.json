@@ -8,6 +8,11 @@
   "navigation": {
     "home": "Home",
     "about": "About",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "services": "Services",
+    "form": "Form Demo",
+    "productName": "Product Details",
+    "serviceName": "Service Details"
   }
 } 
