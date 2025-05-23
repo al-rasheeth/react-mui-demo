@@ -1,0 +1,13 @@
+{
+  "common": {
+    "welcome": "Welcome to React MUI Swagger",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "notFound": "Page not found"
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "dashboard": "Dashboard"
+  }
+} 
