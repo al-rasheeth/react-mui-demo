@@ -4,6 +4,8 @@ import { BasicExampleForm } from '../../components/examples/BasicExampleForm';
 import { NonRHFExample } from '../../components/examples/NonRHFExample';
 import { ValidationExample } from '../../components/examples/ValidationExample';
 import { CustomFieldsExample } from '../../components/examples/CustomFieldsExample';
+import { AdvancedEditorsExample } from '../../components/examples/AdvancedEditorsExample';
+import { FormLayoutsExample } from '../../components/examples/FormLayoutsExample';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -59,6 +61,8 @@ const FormDemo = () => {
             <Tab label="Non-RHF Mode" />
             <Tab label="Advanced Validation" />
             <Tab label="Custom Fields" />
+            <Tab label="Advanced Editors" />
+            <Tab label="Form Layouts" />
           </Tabs>
         </Paper>
 
@@ -100,6 +104,26 @@ const FormDemo = () => {
             Creating and using custom form fields with the base FormField component.
           </Typography>
           <CustomFieldsExample />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
+          <Typography variant="h5" gutterBottom>
+            Advanced Editors
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Showcasing code editors, markdown editors, and file upload components.
+          </Typography>
+          <AdvancedEditorsExample />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
+          <Typography variant="h5" gutterBottom>
+            Form Layouts
+          </Typography>
+          <Typography variant="body2" paragraph>
+            Different layout options for forms: columns, cards, steppers, and more.
+          </Typography>
+          <FormLayoutsExample />
         </TabPanel>
       </Box>
     </Container>
