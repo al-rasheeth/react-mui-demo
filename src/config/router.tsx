@@ -13,6 +13,13 @@ import ServicePage from '@pages/ServicePage';
 // Extend the route configuration with custom metadata
 interface BreadcrumbMeta {
   breadcrumb?: string; // Translation key for breadcrumb
+  params?: {
+    [paramName: string]: {
+      entityType: string; // Type of entity (for API fetching)
+      labelKey: string; // Translation key for fallback label
+      fetchFn?: string; // Name of fetch function to use (optional)
+    };
+  };
 }
 
 // Define routes with breadcrumb metadata
@@ -51,6 +58,13 @@ const routes: (RouteObject & BreadcrumbMeta)[] = [
         path: 'products/:productId',
         element: <ProductPage />,
         breadcrumb: 'productName',
+        params: {
+          productId: {
+            entityType: 'products',
+            labelKey: 'productName',
+            fetchFn: 'product' // Optional: can specify which fetch function to use
+          }
+        }
       },
       {
         path: 'services',
@@ -61,6 +75,13 @@ const routes: (RouteObject & BreadcrumbMeta)[] = [
         path: 'services/:serviceId',
         element: <ServicePage />,
         breadcrumb: 'serviceName',
+        params: {
+          serviceId: {
+            entityType: 'services',
+            labelKey: 'serviceName',
+            fetchFn: 'service'
+          }
+        }
       },
     ] as (RouteObject & BreadcrumbMeta)[],
   },
