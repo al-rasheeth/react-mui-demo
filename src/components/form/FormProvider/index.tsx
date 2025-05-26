@@ -1,17 +1,10 @@
-import { ReactNode } from 'react';
-import {
-  FieldValues,
-  FormProvider as RHFFormProvider,
-  SubmitHandler,
-  UseFormReturn,
-} from 'react-hook-form';
+import React from 'react';
+import { FieldValues, FormProvider as RHFFormProvider } from 'react-hook-form';
+import { FormProviderProps } from './types';
 
-type FormProviderProps<T extends FieldValues> = {
-  methods: UseFormReturn<T>;
-  onSubmit?: SubmitHandler<T>;
-  children: ReactNode;
-};
-
+/**
+ * A wrapper around react-hook-form's FormProvider that automatically handles form submission
+ */
 export function FormProvider<T extends FieldValues>({
   methods,
   onSubmit,

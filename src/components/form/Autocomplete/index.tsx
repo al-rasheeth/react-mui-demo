@@ -1,28 +1,13 @@
-import { ReactNode } from 'react';
-import { FieldValues, Path } from 'react-hook-form';
-import {
-  Autocomplete as MuiAutocomplete,
-  TextField,
-} from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
+import { Autocomplete as MuiAutocomplete, TextField } from '@mui/material';
+import { FormField } from '../FormField';
+import { AutocompleteOption, AutocompleteProps } from './types';
+import { isOptionEqual, getOptionLabel } from './utils';
 
-export type AutocompleteOption = {
-  value: string | number;
-  label: string;
-};
-
-export type AutocompleteProps<T extends FieldValues> = Omit<
-  React.ComponentProps<typeof MuiAutocomplete>,
-  'name' | 'renderInput' | 'options' | 'onChange'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-    options: AutocompleteOption[];
-    placeholder?: string;
-    multiple?: boolean;
-    renderOption?: (option: AutocompleteOption) => ReactNode;
-  };
-
+/**
+ * A form field wrapper around Material-UI's Autocomplete component
+ */
 export function Autocomplete<T extends FieldValues>({
   name,
   label,
@@ -72,15 +57,8 @@ export function Autocomplete<T extends FieldValues>({
                 field.onChange(val);
               }
             }}
-            isOptionEqualToValue={(option, value) => {
-              if (!option || !value) return option === value;
-              return (option as AutocompleteOption).value === (value as AutocompleteOption).value;
-            }}
-            getOptionLabel={(option) => {
-              if (!option) return '';
-              if (typeof option === 'string') return option;
-              return (option as AutocompleteOption).label || '';
-            }}
+            isOptionEqualToValue={isOptionEqual}
+            getOptionLabel={getOptionLabel}
             renderOption={(props, option) => (
               <li {...props} key={(option as AutocompleteOption).value}>
                 {renderOption 

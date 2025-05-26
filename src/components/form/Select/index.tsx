@@ -1,29 +1,17 @@
-import { ReactNode } from 'react';
-import { FieldValues, Path } from 'react-hook-form';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
 import {
   Select as MuiSelect,
-  SelectProps as MuiSelectProps,
   MenuItem,
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import { FormField } from '../FormField';
+import { SelectProps } from './types';
 
-export type SelectOption = {
-  value: string | number;
-  label: string;
-};
-
-export type SelectProps<T extends FieldValues> = Omit<
-  MuiSelectProps,
-  'name' | 'error' | 'label'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-    options: SelectOption[];
-    renderOption?: (option: SelectOption) => ReactNode;
-  };
-
+/**
+ * A form field wrapper around Material-UI's Select component
+ */
 export function Select<T extends FieldValues>({
   name,
   label,

@@ -1,29 +1,11 @@
-import { ReactNode } from 'react';
-import { Controller, FieldValues, UseControllerProps, useFormContext, Path } from 'react-hook-form';
+import React from 'react';
+import { Controller, FieldValues, useFormContext } from 'react-hook-form';
 import { FormHelperText, FormControl, FormLabel } from '@mui/material';
+import { FormFieldProps } from './types';
 
-export type FormFieldProps<T extends FieldValues> = {
-  name: Path<T>;
-  label?: string;
-  helperText?: string;
-  required?: boolean;
-  children: (props: {
-    field: { 
-      value: any; 
-      onChange: (...event: any[]) => void;
-      onBlur: () => void;
-      ref: React.Ref<any>;
-      name: string;
-    };
-    fieldState: { 
-      invalid: boolean; 
-      error?: { message?: string };
-    };
-  }) => ReactNode;
-  controllerProps?: Omit<UseControllerProps<T>, 'name'>;
-  rhfMode?: boolean;
-};
-
+/**
+ * A wrapper component for form fields that integrates with react-hook-form
+ */
 export function FormField<T extends FieldValues>({
   name,
   label,
@@ -73,4 +55,7 @@ export function FormField<T extends FieldValues>({
       )}
     />
   );
-} 
+}
+
+// Export the types directly from the component file
+export type { FormFieldProps, FormFieldRenderProps } from './types'; 

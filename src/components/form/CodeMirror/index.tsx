@@ -1,20 +1,14 @@
-import { useEffect } from 'react';
-import { FieldValues, Path } from 'react-hook-form';
-import ReactCodeMirror, { ReactCodeMirrorProps } from '@uiw/react-codemirror';
-import { javascript } from '@codemirror/lang-javascript';
-import { FormField, FormFieldProps } from './FormField';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
+import ReactCodeMirror from '@uiw/react-codemirror';
 import { Box, FormHelperText } from '@mui/material';
+import { FormField } from '../FormField';
+import { CodeMirrorProps } from './types';
+import { getLanguageExtension } from './utils';
 
-export type CodeMirrorProps<T extends FieldValues> = Omit<
-  ReactCodeMirrorProps,
-  'value' | 'onChange'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-    height?: string;
-    language?: 'javascript' | 'typescript' | 'json' | 'plain';
-  };
-
+/**
+ * A code editor component with syntax highlighting
+ */
 export function CodeMirror<T extends FieldValues>({
   name,
   label,
@@ -36,20 +30,8 @@ export function CodeMirror<T extends FieldValues>({
       rhfMode={rhfMode}
     >
       {({ field, fieldState }) => {
-        // Determine which language extension to use
-        const languageExtension = (() => {
-          switch (language) {
-            case 'javascript':
-              return javascript();
-            case 'typescript':
-              return javascript({ typescript: true });
-            case 'json':
-              return javascript({ jsx: false });
-            case 'plain':
-            default:
-              return [];
-          }
-        })();
+        // Get the language extension
+        const languageExtension = getLanguageExtension(language);
 
         return (
           <Box 

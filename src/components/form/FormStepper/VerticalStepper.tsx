@@ -9,7 +9,7 @@ import {
   Typography 
 } from '@mui/material';
 import { VerticalStepperProps } from './types';
-import { useStepperContext } from './StepperContext';
+import { useStepperContext } from './useStepperContext';
 import StepActions from './StepActions';
 import GlobalActions from './GlobalActions';
 

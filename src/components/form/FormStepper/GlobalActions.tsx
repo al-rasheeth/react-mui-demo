@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Button, ButtonGroup, Tooltip, Typography } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import { GlobalActionsProps } from './types';
-import { useStepperContext } from './StepperContext';
+import { useStepperContext } from './useStepperContext';
 
 /**
  * Component to render global action buttons that appear on all steps

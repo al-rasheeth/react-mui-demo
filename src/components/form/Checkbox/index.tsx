@@ -1,20 +1,16 @@
-import { FieldValues, Path } from 'react-hook-form';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
 import {
-  Switch as MuiSwitch,
-  SwitchProps as MuiSwitchProps,
+  Checkbox as MuiCheckbox,
   FormControlLabel,
 } from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import { FormField } from '../FormField';
+import { CheckboxProps } from './types';
 
-export type SwitchProps<T extends FieldValues> = Omit<
-  MuiSwitchProps,
-  'name' | 'checked'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-  };
-
-export function Switch<T extends FieldValues>({
+/**
+ * A form field wrapper around Material-UI's Checkbox component
+ */
+export function Checkbox<T extends FieldValues>({
   name,
   label,
   helperText,
@@ -22,7 +18,7 @@ export function Switch<T extends FieldValues>({
   controllerProps,
   rhfMode = true,
   ...rest
-}: SwitchProps<T>) {
+}: CheckboxProps<T>) {
   return (
     <FormField<T>
       name={name}
@@ -32,10 +28,10 @@ export function Switch<T extends FieldValues>({
       controllerProps={controllerProps}
       rhfMode={rhfMode}
     >
-      {({ field, fieldState }) => (
+      {({ field }) => (
         <FormControlLabel
           control={
-            <MuiSwitch
+            <MuiCheckbox
               {...rest}
               checked={Boolean(field.value)}
               onChange={(e) => field.onChange(e.target.checked)}

@@ -1,28 +1,16 @@
-import { ReactNode } from 'react';
-import { FieldValues, Path } from 'react-hook-form';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
 import {
   RadioGroup as MuiRadioGroup,
-  RadioGroupProps as MuiRadioGroupProps,
   Radio,
   FormControlLabel,
 } from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import { FormField } from '../FormField';
+import { RadioGroupProps } from './types';
 
-export type RadioOption = {
-  value: string | number;
-  label: string;
-};
-
-export type RadioGroupProps<T extends FieldValues> = Omit<
-  MuiRadioGroupProps,
-  'name' | 'defaultValue'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-    options: RadioOption[];
-    renderOption?: (option: RadioOption) => ReactNode;
-  };
-
+/**
+ * A form field wrapper around Material-UI's RadioGroup component
+ */
 export function RadioGroup<T extends FieldValues>({
   name,
   label,
@@ -43,7 +31,7 @@ export function RadioGroup<T extends FieldValues>({
       controllerProps={controllerProps}
       rhfMode={rhfMode}
     >
-      {({ field, fieldState }) => (
+      {({ field }) => (
         <MuiRadioGroup
           {...rest}
           name={field.name}

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { FormStepProps, StepperContextProps, FormStepAction } from './types';
 
 /**
@@ -36,14 +36,14 @@ export const StepperProvider: React.FC<StepperProviderProps> = ({
   confirmNavigationMessage,
   globalActions = [],
 }) => {
-  const [activeStep, setActiveStep] = useState(initialStep);
+  const [activeStep, setActiveStep] = useState<number>(initialStep);
   const [completed, setCompleted] = useState<{ [k: number]: boolean }>({});
-  const [skipped, setSkipped] = useState(new Set<number>());
+  const [skipped, setSkipped] = useState<Set<number>>(new Set<number>());
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
 
   // Check step statuses
   const isStepComplete = useCallback(
-    (step: number) => completed[step],
+    (step: number) => Boolean(completed[step]),
     [completed]
   );
   
@@ -116,7 +116,9 @@ export const StepperProvider: React.FC<StepperProviderProps> = ({
 
     // Move to next step or trigger onComplete for the last step
     if (activeStep === steps.length - 1) {
-      onComplete && onComplete(activeStep);
+      if (onComplete) {
+        onComplete(activeStep);
+      }
     } else {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     }
@@ -247,15 +249,5 @@ export const StepperProvider: React.FC<StepperProviderProps> = ({
   );
 };
 
-/**
- * Custom hook to use the stepper context
- * @returns The stepper context
- * @throws Error if used outside of a StepperProvider
- */
-export const useStepperContext = (): StepperContextProps => {
-  const context = useContext(StepperContext);
-  if (context === undefined) {
-    throw new Error('useStepperContext must be used within a StepperProvider');
-  }
-  return context;
-}; 
+// Export the context to be used in the hook file
+export { StepperContext }; 

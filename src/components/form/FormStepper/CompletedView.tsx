@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { useStepperContext } from './StepperContext';
+import { useStepperContext } from './useStepperContext';
 
 interface CompletedViewProps {
   message?: string;

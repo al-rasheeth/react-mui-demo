@@ -8,7 +8,7 @@ import {
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 import { MobileStepperProps } from './types';
-import { useStepperContext } from './StepperContext';
+import { useStepperContext } from './useStepperContext';
 import StepActions from './StepActions';
 import GlobalActions from './GlobalActions';
 

@@ -1,16 +1,12 @@
-import { FieldValues, Path } from 'react-hook-form';
-import { TextField as MuiTextField, TextFieldProps as MuiTextFieldProps } from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
+import { TextField as MuiTextField } from '@mui/material';
+import { FormField } from '../FormField';
+import { TextAreaProps } from './types';
 
-export type TextAreaProps<T extends FieldValues> = Omit<
-  MuiTextFieldProps,
-  'name' | 'error' | 'helperText' | 'multiline' | 'rows'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-    rows?: number;
-  };
-
+/**
+ * A form field wrapper around Material-UI's TextField component configured as a multiline textarea
+ */
 export function TextArea<T extends FieldValues>({
   name,
   label,

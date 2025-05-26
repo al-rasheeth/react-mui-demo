@@ -1,15 +1,12 @@
-import { FieldValues, Path } from 'react-hook-form';
-import { TextField as MuiTextField, TextFieldProps as MuiTextFieldProps } from '@mui/material';
-import { FormField, FormFieldProps } from './FormField';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
+import { TextField as MuiTextField } from '@mui/material';
+import { FormField } from '../FormField';
+import { TextFieldProps } from './types';
 
-export type TextFieldProps<T extends FieldValues> = Omit<
-  MuiTextFieldProps,
-  'name' | 'error' | 'helperText'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-  };
-
+/**
+ * A form field wrapper around Material-UI's TextField component
+ */
 export function TextField<T extends FieldValues>({
   name,
   label,

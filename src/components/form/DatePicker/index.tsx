@@ -1,15 +1,12 @@
-import { FieldValues, Path } from 'react-hook-form';
+import React from 'react';
+import { FieldValues } from 'react-hook-form';
 import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
-import { FormField, FormFieldProps } from './FormField';
+import { FormField } from '../FormField';
+import { DatePickerProps } from './types';
 
-export type RHFDatePickerProps<T extends FieldValues> = Omit<
-  React.ComponentProps<typeof MuiDatePicker>,
-  'value' | 'onChange'
-> &
-  Omit<FormFieldProps<T>, 'children'> & {
-    name: Path<T>;
-  };
-
+/**
+ * A form field wrapper around Material-UI's DatePicker component
+ */
 export function DatePicker<T extends FieldValues>({
   name,
   label,
@@ -18,7 +15,7 @@ export function DatePicker<T extends FieldValues>({
   controllerProps,
   rhfMode = true,
   ...rest
-}: RHFDatePickerProps<T>) {
+}: DatePickerProps<T>) {
   return (
     <FormField<T>
       name={name}
