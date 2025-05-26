@@ -8,4 +8,6 @@ export * from './Switch';
 export * from './DatePicker';
 export * from './TextArea';
 export * from './Autocomplete';
-export * from './FileUpload'; 
+export * from './FileUpload';
+export * from './CodeMirror';
+export * from './MarkdownEditor'; 

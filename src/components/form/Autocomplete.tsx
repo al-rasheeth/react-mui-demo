@@ -63,7 +63,7 @@ export function Autocomplete<T extends FieldValues>({
               if (multiple) {
                 // For multiple selection, extract all values
                 const values = Array.isArray(newValue) 
-                  ? newValue.map(item => item.value)
+                  ? (newValue as AutocompleteOption[]).map(item => item.value)
                   : [];
                 field.onChange(values);
               } else {
@@ -72,17 +72,20 @@ export function Autocomplete<T extends FieldValues>({
                 field.onChange(val);
               }
             }}
-            isOptionEqualToValue={(option, value) => 
-              option && value ? option.value === value.value : option === value
-            }
+            isOptionEqualToValue={(option, value) => {
+              if (!option || !value) return option === value;
+              return (option as AutocompleteOption).value === (value as AutocompleteOption).value;
+            }}
             getOptionLabel={(option) => {
-              // Handle both object and string options
+              if (!option) return '';
               if (typeof option === 'string') return option;
-              return option?.label || '';
+              return (option as AutocompleteOption).label || '';
             }}
             renderOption={(props, option) => (
-              <li {...props} key={option.value}>
-                {renderOption ? renderOption(option) : option.label}
+              <li {...props} key={(option as AutocompleteOption).value}>
+                {renderOption 
+                  ? renderOption(option as AutocompleteOption) 
+                  : (option as AutocompleteOption).label}
               </li>
             )}
             renderInput={(params) => (
@@ -102,5 +105,4 @@ export function Autocomplete<T extends FieldValues>({
       }}
     </FormField>
   );
-} 
 } 
