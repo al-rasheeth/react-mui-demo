@@ -72,6 +72,9 @@ export type FormStepperProps = {
   // Navigation confirmation
   confirmNavigation?: boolean;
   confirmNavigationMessage?: string;
+  // Mobile stepper customization
+  mobileStepperVariant?: 'text' | 'dots' | 'progress';
+  mobileStepperPosition?: 'static' | 'top' | 'bottom';
 };
 
 export function FormStepper({
@@ -96,6 +99,8 @@ export function FormStepper({
   requireAllStepsComplete = true,
   confirmNavigation = false,
   confirmNavigationMessage = 'Are you sure you want to navigate away? Unsaved changes may be lost.',
+  mobileStepperVariant = 'dots',
+  mobileStepperPosition = 'static',
 }: FormStepperProps) {
   const [activeStep, setActiveStep] = useState(initialStep);
   const [completed, setCompleted] = useState<{ [k: number]: boolean }>({});
@@ -524,39 +529,78 @@ export function FormStepper({
       
       {renderGlobalActions()}
       
+      {/* Mobile stepper in top position */}
+      {mobileStepperPosition === 'top' && (
+        <MobileStepper
+          variant={mobileStepperVariant}
+          steps={steps.length}
+          position="static"
+          activeStep={activeStep}
+          sx={{ maxWidth: '100%', flexGrow: 1, mb: 2 }}
+          nextButton={
+            <Button
+              size="small"
+              onClick={handleNext}
+              disabled={activeStep === steps.length}
+            >
+              {activeStep === steps.length - 1 ? finishButtonLabel : nextButtonLabel}
+              <KeyboardArrowRight />
+            </Button>
+          }
+          backButton={
+            <Button 
+              size="small" 
+              onClick={handleBack} 
+              disabled={activeStep === 0}
+            >
+              <KeyboardArrowLeft />
+              {backButtonLabel}
+            </Button>
+          }
+        />
+      )}
+      
+      {/* Content is always in the middle */}
       <Box sx={{ mt: 2, mb: 3 }}>
         {steps[activeStep]?.content}
       </Box>
       
       {renderStepActions(activeStep)}
       
-      <MobileStepper
-        variant="dots"
-        steps={steps.length}
-        position="static"
-        activeStep={activeStep}
-        sx={{ maxWidth: '100%', flexGrow: 1 }}
-        nextButton={
-          <Button
-            size="small"
-            onClick={handleNext}
-            disabled={activeStep === steps.length}
-          >
-            {activeStep === steps.length - 1 ? finishButtonLabel : nextButtonLabel}
-            <KeyboardArrowRight />
-          </Button>
-        }
-        backButton={
-          <Button 
-            size="small" 
-            onClick={handleBack} 
-            disabled={activeStep === 0}
-          >
-            <KeyboardArrowLeft />
-            {backButtonLabel}
-          </Button>
-        }
-      />
+      {/* Mobile stepper in bottom or static position */}
+      {(mobileStepperPosition === 'bottom' || mobileStepperPosition === 'static') && (
+        <MobileStepper
+          variant={mobileStepperVariant}
+          steps={steps.length}
+          position={mobileStepperPosition === 'bottom' ? 'static' : mobileStepperPosition}
+          activeStep={activeStep}
+          sx={{ 
+            maxWidth: '100%', 
+            flexGrow: 1,
+            mt: mobileStepperPosition === 'bottom' ? 2 : 0
+          }}
+          nextButton={
+            <Button
+              size="small"
+              onClick={handleNext}
+              disabled={activeStep === steps.length}
+            >
+              {activeStep === steps.length - 1 ? finishButtonLabel : nextButtonLabel}
+              <KeyboardArrowRight />
+            </Button>
+          }
+          backButton={
+            <Button 
+              size="small" 
+              onClick={handleBack} 
+              disabled={activeStep === 0}
+            >
+              <KeyboardArrowLeft />
+              {backButtonLabel}
+            </Button>
+          }
+        />
+      )}
     </>
   );
 

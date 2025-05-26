@@ -72,6 +72,8 @@ export function FormStepperExample() {
   const [confirmNavigation, setConfirmNavigation] = useState(false);
   const [requireAllSteps, setRequireAllSteps] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [mobileStepperVariant, setMobileStepperVariant] = useState<'text' | 'dots' | 'progress'>('dots');
+  const [mobileStepperPosition, setMobileStepperPosition] = useState<'static' | 'top' | 'bottom'>('static');
 
   // Initialize form with react-hook-form
   const methods = useForm<FormValues>({
@@ -429,6 +431,26 @@ export function FormStepperExample() {
     }
   };
 
+  // Handle mobile stepper variant change
+  const handleMobileVariantChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newVariant: 'text' | 'dots' | 'progress',
+  ) => {
+    if (newVariant !== null) {
+      setMobileStepperVariant(newVariant);
+    }
+  };
+
+  // Handle mobile stepper position change
+  const handleMobilePositionChange = (
+    _: React.MouseEvent<HTMLElement>,
+    newPosition: 'static' | 'top' | 'bottom',
+  ) => {
+    if (newPosition !== null) {
+      setMobileStepperPosition(newPosition);
+    }
+  };
+
   return (
     <Box sx={{ p: 4 }}>
       <Typography variant="h4" gutterBottom>
@@ -563,6 +585,44 @@ export function FormStepperExample() {
                 </ToggleButtonGroup>
               </Box>
 
+              {stepperOrientation === 'mobile' && (
+                <>
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Mobile Stepper Variant
+                    </Typography>
+                    <ToggleButtonGroup
+                      value={mobileStepperVariant}
+                      exclusive
+                      onChange={handleMobileVariantChange}
+                      aria-label="mobile stepper variant"
+                      size="small"
+                    >
+                      <ToggleButton value="dots">Dots</ToggleButton>
+                      <ToggleButton value="text">Text</ToggleButton>
+                      <ToggleButton value="progress">Progress</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Mobile Stepper Position
+                    </Typography>
+                    <ToggleButtonGroup
+                      value={mobileStepperPosition}
+                      exclusive
+                      onChange={handleMobilePositionChange}
+                      aria-label="mobile stepper position"
+                      size="small"
+                    >
+                      <ToggleButton value="static">Static</ToggleButton>
+                      <ToggleButton value="top">Top</ToggleButton>
+                      <ToggleButton value="bottom">Bottom</ToggleButton>
+                    </ToggleButtonGroup>
+                  </Box>
+                </>
+              )}
+
               <Box sx={{ mt: 2 }}>
                 <Chip 
                   icon={<InfoIcon />} 
@@ -600,6 +660,8 @@ export function FormStepperExample() {
           autoSaveInterval={enableAutoSave ? 10000 : 0}
           confirmNavigation={confirmNavigation}
           requireAllStepsComplete={requireAllSteps}
+          mobileStepperVariant={mobileStepperVariant}
+          mobileStepperPosition={mobileStepperPosition}
         />
       </FormProvider>
 
