@@ -1,5 +1,6 @@
 export * from './FormField';
 export * from './FormProvider';
+export * from './FormStepper';
 export * from './TextField';
 export * from './Select';
 export * from './Checkbox';

@@ -6,6 +6,7 @@ import { ValidationExample } from '../../components/examples/ValidationExample';
 import { CustomFieldsExample } from '../../components/examples/CustomFieldsExample';
 import { AdvancedEditorsExample } from '../../components/examples/AdvancedEditorsExample';
 import { FormLayoutsExample } from '../../components/examples/FormLayoutsExample';
+import { FormStepperExample } from '../../components/examples/FormStepperExample';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -63,6 +64,7 @@ const FormDemo = () => {
             <Tab label="Custom Fields" />
             <Tab label="Advanced Editors" />
             <Tab label="Form Layouts" />
+            <Tab label="Form Stepper" />
           </Tabs>
         </Paper>
 
@@ -124,6 +126,16 @@ const FormDemo = () => {
             Different layout options for forms: columns, cards, steppers, and more.
           </Typography>
           <FormLayoutsExample />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={6}>
+          <Typography variant="h5" gutterBottom>
+            Form Stepper
+          </Typography>
+          <Typography variant="body2" paragraph>
+            A reusable form stepper component for multi-step forms with validation and customization options.
+          </Typography>
+          <FormStepperExample />
         </TabPanel>
       </Box>
     </Container>
