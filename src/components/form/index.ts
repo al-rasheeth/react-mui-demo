@@ -1,6 +1,11 @@
 export * from './FormField';
 export * from './FormProvider';
-export * from './FormStepper';
+export { FormStepper } from './FormStepper';
+export type { 
+  FormStepAction, 
+  FormStepProps, 
+  FormStepperProps 
+} from './FormStepper/types';
 export * from './TextField';
 export * from './Select';
 export * from './Checkbox';
