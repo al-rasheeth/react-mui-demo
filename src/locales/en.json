@@ -13,6 +13,7 @@
     "services": "Services",
     "form": "Form Demo",
     "productName": "Product Details",
-    "serviceName": "Service Details"
+    "serviceName": "Service Details",
+    "apiPublish": "API Publish"
   }
 } 

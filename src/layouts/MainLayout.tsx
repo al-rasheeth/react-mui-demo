@@ -33,6 +33,9 @@ const MainLayout = () => {
             <Typography component={RouterLink} to="/services" color="inherit" sx={{ textDecoration: 'none' }}>
               {t('navigation.services')}
             </Typography>
+            <Typography component={RouterLink} to="/api-publish" color="inherit" sx={{ textDecoration: 'none' }}>
+              {t('navigation.apiPublish')}
+            </Typography>
           </Box>
           <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
             {theme === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}

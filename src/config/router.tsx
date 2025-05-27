@@ -9,6 +9,7 @@ import ProductsPage from '@pages/ProductsPage';
 import ProductPage from '@pages/ProductPage';
 import ServicesPage from '@pages/ServicesPage';
 import ServicePage from '@pages/ServicePage';
+import ApiPublishPage from '@pages/ApiPublishPage';
 
 // Extend the route configuration with custom metadata
 interface BreadcrumbMeta {
@@ -82,6 +83,11 @@ const routes: (RouteObject & BreadcrumbMeta)[] = [
             fetchFn: 'service'
           }
         }
+      },
+      {
+        path: 'api-publish',
+        element: <ApiPublishPage />,
+        breadcrumb: 'apiPublish',
       },
     ] as (RouteObject & BreadcrumbMeta)[],
   },
