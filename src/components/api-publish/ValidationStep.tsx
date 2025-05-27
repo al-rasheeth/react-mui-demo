@@ -521,28 +521,45 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
   // Get all unique tags in the API
   const getTags = () => {
     const tagSet = new Set<string>();
+    const tagDetails: Record<string, { count: number, description?: string }> = {};
     
+    // First collect defined tags
     if (oasDocument.tags) {
-      oasDocument.tags.forEach((tag: any) => tagSet.add(tag.name));
+      oasDocument.tags.forEach((tag: any) => {
+        tagSet.add(tag.name);
+        tagDetails[tag.name] = { 
+          count: 0,
+          description: tag.description 
+        };
+      });
     }
     
-    // Also collect tags from operations
+    // Then collect tags from operations and count them
     if (oasDocument.paths) {
       Object.values(oasDocument.paths).forEach((pathItem: any) => {
         const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
         methods.forEach(method => {
           if (pathItem[method] && pathItem[method].tags) {
-            pathItem[method].tags.forEach((tag: string) => tagSet.add(tag));
+            pathItem[method].tags.forEach((tag: string) => {
+              tagSet.add(tag);
+              if (!tagDetails[tag]) {
+                tagDetails[tag] = { count: 0 };
+              }
+              tagDetails[tag].count++;
+            });
           }
         });
       });
     }
     
-    return Array.from(tagSet);
+    return { 
+      tags: Array.from(tagSet),
+      tagDetails
+    };
   };
   
-  // Count HTTP methods
-  const countMethods = () => {
+  // Count HTTP methods and analyze operation details
+  const analyzeOperations = () => {
     const methodCounts: Record<string, number> = {
       get: 0,
       post: 0,
@@ -553,17 +570,71 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
       head: 0
     };
     
+    // Track more detailed statistics
+    let parametersCount = 0;
+    let requiredParametersCount = 0;
+    let responsesCount = 0;
+    let deprecatedCount = 0;
+    let hasAuthCount = 0;
+    let totalDocumentationScore = 0;
+    
     if (oasDocument.paths) {
       Object.values(oasDocument.paths).forEach((pathItem: any) => {
         Object.keys(methodCounts).forEach(method => {
           if (pathItem[method]) {
             methodCounts[method]++;
+            const operation = pathItem[method];
+            
+            // Count parameters
+            if (operation.parameters) {
+              parametersCount += operation.parameters.length;
+              requiredParametersCount += operation.parameters.filter((p: any) => p.required).length;
+            }
+            
+            // Count responses
+            if (operation.responses) {
+              responsesCount += Object.keys(operation.responses).length;
+            }
+            
+            // Check for deprecated endpoints
+            if (operation.deprecated) {
+              deprecatedCount++;
+            }
+            
+            // Check for security requirements
+            if (operation.security && operation.security.length > 0) {
+              hasAuthCount++;
+            }
+            
+            // Calculate documentation quality score
+            let docScore = 0;
+            if (operation.summary) docScore += 1;
+            if (operation.description) docScore += 2;
+            if (operation.parameters && operation.parameters.every((p: any) => p.description)) docScore += 1;
+            if (operation.responses && Object.values(operation.responses).every((r: any) => r.description)) docScore += 1;
+            
+            totalDocumentationScore += docScore;
           }
         });
       });
     }
     
-    return methodCounts;
+    const totalOperations = Object.values(methodCounts).reduce((sum, count) => sum + count, 0);
+    
+    // Average documentation score per operation (0-5 scale)
+    const documentationScore = totalOperations > 0 ? 
+      Math.min(5, Math.round((totalDocumentationScore / totalOperations) * 10) / 10) : 0;
+    
+    return {
+      methodCounts,
+      parametersCount,
+      requiredParametersCount,
+      responsesCount,
+      deprecatedCount,
+      hasAuthCount,
+      documentationScore,
+      totalOperations
+    };
   };
   
   // Get security schemes
@@ -606,9 +677,9 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
   };
   
   // Calculate path complexity (average operations per path)
-  const calculatePathComplexity = (): { score: number, level: 'low' | 'medium' | 'high' } => {
+  const calculatePathComplexity = (): { score: number, level: 'low' | 'medium' | 'high', assessment: string } => {
     if (!oasDocument.paths || Object.keys(oasDocument.paths).length === 0) {
-      return { score: 0, level: 'low' };
+      return { score: 0, level: 'low', assessment: 'No paths defined' };
     }
     
     const paths = Object.keys(oasDocument.paths).length;
@@ -616,17 +687,261 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
     const score = operations / paths;
     
     let level: 'low' | 'medium' | 'high' = 'low';
-    if (score >= 3) level = 'high';
-    else if (score >= 1.5) level = 'medium';
+    let assessment = '';
     
-    return { score: parseFloat(score.toFixed(1)), level };
+    if (score >= 3) {
+      level = 'high';
+      assessment = 'Many operations per path - consider reorganizing';
+    } else if (score >= 1.5) {
+      level = 'medium';
+      assessment = 'Balanced operations per path';
+    } else {
+      assessment = 'Few operations per path - consider consolidation';
+    }
+    
+    return { score: parseFloat(score.toFixed(1)), level, assessment };
+  };
+
+  // Calculate schema complexity
+  const calculateSchemaComplexity = (): { score: number, level: 'low' | 'medium' | 'high', assessment: string } => {
+    const schemas = oasDocument.components?.schemas || oasDocument.definitions || {};
+    const schemaKeys = Object.keys(schemas);
+    
+    if (schemaKeys.length === 0) {
+      return { score: 0, level: 'low', assessment: 'No schemas defined' };
+    }
+    
+    let totalProperties = 0;
+    let nestedSchemas = 0;
+    let schemaReferences = 0;
+    
+    schemaKeys.forEach(key => {
+      const schema = schemas[key];
+      
+      // Count properties
+      if (schema.properties) {
+        totalProperties += Object.keys(schema.properties).length;
+        
+        // Count references to other schemas (indirectly measures relationship complexity)
+        Object.values(schema.properties).forEach((prop: any) => {
+          if (prop.$ref || (prop.items && prop.items.$ref)) {
+            schemaReferences++;
+          }
+        });
+      }
+      
+      // Count nested schemas (allOf, oneOf, anyOf)
+      ['allOf', 'oneOf', 'anyOf'].forEach(combiner => {
+        if (schema[combiner] && Array.isArray(schema[combiner])) {
+          nestedSchemas += schema[combiner].length;
+        }
+      });
+    });
+    
+    // Calculate average properties per schema
+    const avgProperties = totalProperties / schemaKeys.length;
+    
+    // Calculate reference ratio (references per schema)
+    const referenceRatio = schemaReferences / schemaKeys.length;
+    
+    // Calculate complexity score (0-10 scale)
+    // - Higher number of avg properties increases score
+    // - Higher reference ratio increases score
+    // - Higher nested schemas increases score
+    const complexityScore = Math.min(10, (
+      (avgProperties / 5) + (referenceRatio * 3) + (nestedSchemas / schemaKeys.length * 2)
+    ));
+    
+    let level: 'low' | 'medium' | 'high' = 'low';
+    let assessment = '';
+    
+    if (complexityScore >= 6) {
+      level = 'high';
+      assessment = 'Complex schema relationships - consider simplification';
+    } else if (complexityScore >= 3) {
+      level = 'medium';
+      assessment = 'Moderate schema complexity';
+    } else {
+      assessment = 'Simple schema structure';
+    }
+    
+    return { 
+      score: parseFloat(complexityScore.toFixed(1)), 
+      level, 
+      assessment 
+    };
   };
   
-  const tags = getTags();
-  const methodCounts = countMethods();
-  const securitySchemes = getSecuritySchemes();
-  const servers = getServers();
-  const pathComplexity = calculatePathComplexity();
+  // Calculate API quality score based on multiple factors
+  const calculateApiQualityScore = (): { 
+    score: number,
+    level: 'poor' | 'fair' | 'good' | 'excellent',
+    details: Record<string, number>
+  } => {
+    const scores: Record<string, number> = {};
+    
+    // 1. Documentation completeness (0-10)
+    const info = oasDocument.info || {};
+    scores.documentation = 0;
+    if (info.title) scores.documentation += 1;
+    if (info.description && info.description.length > 30) scores.documentation += 2;
+    if (info.contact) scores.documentation += 1;
+    if (info.license) scores.documentation += 1;
+    if (info.termsOfService) scores.documentation += 0.5;
+    
+    // Add 0-4.5 points for endpoint documentation (calculated in analyzeOperations)
+    scores.documentation += Math.min(4.5, operationsAnalysis.documentationScore);
+    
+    // 2. API Structure (0-10)
+    scores.structure = 0;
+    
+    // - Tag organization
+    const tagRatio = tagsData.tags.length / Math.max(1, operationsAnalysis.totalOperations);
+    scores.structure += Math.min(3, tagRatio * 10);
+    
+    // - Path naming consistency (simplified check)
+    if (oasDocument.paths && Object.keys(oasDocument.paths).length > 0) {
+      const paths = Object.keys(oasDocument.paths);
+      const hasConsistentPaths = paths.every(p => p.startsWith('/'));
+      const hasVersionedPaths = paths.some(p => p.includes('/v1/') || p.includes('/v2/'));
+      
+      if (hasConsistentPaths) scores.structure += 2;
+      if (hasVersionedPaths) scores.structure += 1;
+    }
+    
+    // - Schema organization
+    const hasSchemas = validationResult.stats.schemas > 0;
+    scores.structure += hasSchemas ? 2 : 0;
+    
+    // - Examples presence
+    const hasExamples = checkForExamples();
+    scores.structure += hasExamples ? 2 : 0;
+    
+    // 3. Security (0-10)
+    scores.security = 0;
+    
+    // - Security schemes defined
+    scores.security += Math.min(5, securitySchemes.length * 2);
+    
+    // - Endpoints using security
+    const securityCoverage = operationsAnalysis.totalOperations > 0 
+      ? operationsAnalysis.hasAuthCount / operationsAnalysis.totalOperations 
+      : 0;
+    
+    scores.security += Math.round(securityCoverage * 5);
+    
+    // 4. Overall completeness (0-10)
+    scores.completeness = 0;
+    
+    // - Has servers defined
+    scores.completeness += servers.length > 0 ? 2 : 0;
+    
+    // - Has schemas
+    scores.completeness += hasSchemas ? 2 : 0;
+    
+    // - Has sufficient operations
+    scores.completeness += operationsAnalysis.totalOperations >= 5 ? 2 : 
+                          operationsAnalysis.totalOperations > 0 ? 1 : 0;
+    
+    // - Has responses properly defined
+    const responsesPerOperation = operationsAnalysis.totalOperations > 0 
+      ? operationsAnalysis.responsesCount / operationsAnalysis.totalOperations 
+      : 0;
+    
+    scores.completeness += responsesPerOperation >= 2 ? 2 : 
+                          responsesPerOperation > 0 ? 1 : 0;
+    
+    // - Has parameters properly defined
+    const paramsPerOperation = operationsAnalysis.totalOperations > 0 
+      ? operationsAnalysis.parametersCount / operationsAnalysis.totalOperations 
+      : 0;
+    
+    scores.completeness += paramsPerOperation > 0 ? 2 : 0;
+    
+    // Calculate overall score (weighted average)
+    const overallScore = (
+      scores.documentation * 0.3 + 
+      scores.structure * 0.3 + 
+      scores.security * 0.2 + 
+      scores.completeness * 0.2
+    );
+    
+    // Normalize to 0-100 scale
+    const normalizedScore = Math.round(overallScore * 10);
+    
+    let level: 'poor' | 'fair' | 'good' | 'excellent' = 'poor';
+    if (normalizedScore >= 85) level = 'excellent';
+    else if (normalizedScore >= 70) level = 'good';
+    else if (normalizedScore >= 50) level = 'fair';
+    
+    return {
+      score: normalizedScore,
+      level,
+      details: scores
+    };
+  };
+  
+  // Check if API has examples
+  const checkForExamples = (): boolean => {
+    // Check request/response examples in paths
+    if (oasDocument.paths) {
+      for (const path of Object.values(oasDocument.paths) as any[]) {
+        const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
+        for (const method of methods) {
+          if (!path[method]) continue;
+          
+          // Check for examples in responses
+          if (path[method].responses) {
+            for (const response of Object.values(path[method].responses) as any[]) {
+              // OpenAPI 3.x structure
+              if (response.content) {
+                for (const contentType of Object.values(response.content) as any[]) {
+                  if (contentType.examples || contentType.example) {
+                    return true;
+                  }
+                }
+              }
+              
+              // OpenAPI 2.0 structure
+              if (response.examples || response.example) {
+                return true;
+              }
+            }
+          }
+          
+          // Check for examples in request body (OpenAPI 3.x)
+          if (path[method].requestBody && path[method].requestBody.content) {
+            for (const contentType of Object.values(path[method].requestBody.content) as any[]) {
+              if (contentType.examples || contentType.example) {
+                return true;
+              }
+            }
+          }
+          
+          // Check for examples in parameters
+          if (path[method].parameters) {
+            for (const param of path[method].parameters) {
+              if (param.example || param.examples) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Check examples in components/definitions
+    const schemas = oasDocument.components?.schemas || oasDocument.definitions;
+    if (schemas) {
+      for (const schema of Object.values(schemas) as any[]) {
+        if (schema.example) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  };
   
   // Calculate total paths
   const totalPaths = oasDocument.paths ? Object.keys(oasDocument.paths).length : 0;
@@ -635,24 +950,127 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
   const hasContact = oasDocument.info?.contact && Object.keys(oasDocument.info.contact).length > 0;
   const hasLicense = oasDocument.info?.license && Object.keys(oasDocument.info.license).length > 0;
   
-  // Check if API has deprecated endpoints
-  const hasDeprecatedEndpoints = (() => {
-    if (!oasDocument.paths) return false;
-    
-    for (const path of Object.values(oasDocument.paths) as any[]) {
-      const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
-      for (const method of methods) {
-        if (path[method] && path[method].deprecated) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  })();
+  // Check if API has external docs
+  const hasExternalDocs = oasDocument.externalDocs && oasDocument.externalDocs.url;
   
+  // Get all the computed data
+  const tagsData = getTags();
+  const operationsAnalysis = analyzeOperations();
+  const securitySchemes = getSecuritySchemes();
+  const servers = getServers();
+  const pathComplexity = calculatePathComplexity();
+  const schemaComplexity = calculateSchemaComplexity();
+  const apiQualityScore = calculateApiQualityScore();
+  
+  // Check if API has deprecated endpoints
+  const hasDeprecatedEndpoints = operationsAnalysis.deprecatedCount > 0;
+
   return (
     <Box sx={{ mt: 2 }}>
+      {/* API Quality Score */}
+      <Paper 
+        variant="outlined" 
+        sx={{ 
+          p: 2, 
+          mb: 2,
+          background: `linear-gradient(90deg, ${
+            apiQualityScore.level === 'excellent' ? 'success.light' :
+            apiQualityScore.level === 'good' ? 'primary.light' :
+            apiQualityScore.level === 'fair' ? 'warning.light' : 'error.light'
+          } 0%, transparent 100%)`,
+        }}
+      >
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="h6" component="div">
+                API Quality Score
+              </Typography>
+              <Chip 
+                label={apiQualityScore.level} 
+                color={
+                  apiQualityScore.level === 'excellent' ? 'success' :
+                  apiQualityScore.level === 'good' ? 'primary' :
+                  apiQualityScore.level === 'fair' ? 'warning' : 'error'
+                }
+                sx={{ textTransform: 'capitalize' }}
+              />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Overall quality assessment based on documentation, structure, security, and completeness
+            </Typography>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Box sx={{ position: 'relative', width: 80, height: 80 }}>
+                <CircularProgress 
+                  variant="determinate" 
+                  value={100} 
+                  size={80} 
+                  thickness={4} 
+                  sx={{ color: 'divider', position: 'absolute' }} 
+                />
+                <CircularProgress 
+                  variant="determinate" 
+                  value={apiQualityScore.score} 
+                  size={80} 
+                  thickness={4}
+                  sx={{ 
+                    color: 
+                      apiQualityScore.level === 'excellent' ? 'success.main' :
+                      apiQualityScore.level === 'good' ? 'primary.main' :
+                      apiQualityScore.level === 'fair' ? 'warning.main' : 'error.main',
+                    position: 'absolute'
+                  }} 
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Typography variant="h5" component="div" fontWeight="bold">
+                    {apiQualityScore.score}
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ ml: 2 }}>
+                <Stack spacing={0.5}>
+                  {Object.entries(apiQualityScore.details).map(([key, score]) => (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="caption" sx={{ width: 100, textTransform: 'capitalize' }}>
+                        {key}:
+                      </Typography>
+                      <Box sx={{ width: 60, height: 4, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden', ml: 1 }}>
+                        <Box 
+                          sx={{ 
+                            height: '100%', 
+                            width: `${score * 10}%`, 
+                            bgcolor: 
+                              score >= 8 ? 'success.main' :
+                              score >= 6 ? 'primary.main' :
+                              score >= 4 ? 'warning.main' : 'error.main',
+                          }} 
+                        />
+                      </Box>
+                      <Typography variant="caption" sx={{ ml: 1 }}>
+                        {score.toFixed(1)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+      
       {/* Summary Cards */}
       <Grid container spacing={2}>
         <Grid size={{ xs: 6, md: 3 }}>
@@ -664,7 +1082,12 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               borderLeft: '4px solid',
               borderLeftColor: 'primary.main',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 3,
+              }
             }}
           >
             <Typography color="text.secondary" variant="caption" component="div">
@@ -673,9 +1096,19 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
             <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
               {formatNumber(validationResult.stats.endpoints)}
             </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
-              Across {formatNumber(totalPaths)} paths
-            </Typography>
+            <Box sx={{ mt: 'auto', pt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography color="text.secondary" variant="body2">
+                Across {formatNumber(totalPaths)} paths
+              </Typography>
+              {operationsAnalysis.deprecatedCount > 0 && (
+                <Chip 
+                  size="small" 
+                  color="warning" 
+                  label={`${operationsAnalysis.deprecatedCount} deprecated`}
+                  sx={{ alignSelf: 'flex-start' }}
+                />
+              )}
+            </Box>
           </Paper>
         </Grid>
         
@@ -688,7 +1121,12 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               borderLeft: '4px solid',
               borderLeftColor: 'secondary.main',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 3,
+              }
             }}
           >
             <Typography color="text.secondary" variant="caption" component="div">
@@ -697,9 +1135,20 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
             <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
               {formatNumber(validationResult.stats.schemas)}
             </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
-              Data models & objects
-            </Typography>
+            <Box sx={{ mt: 'auto', pt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography color="text.secondary" variant="body2">
+                Data models & objects
+              </Typography>
+              <Chip 
+                size="small" 
+                color={
+                  schemaComplexity.level === 'high' ? 'error' :
+                  schemaComplexity.level === 'medium' ? 'warning' : 'success'
+                }
+                label={`${schemaComplexity.level} complexity`}
+                sx={{ alignSelf: 'flex-start', textTransform: 'capitalize' }}
+              />
+            </Box>
           </Paper>
         </Grid>
         
@@ -712,18 +1161,45 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               borderLeft: '4px solid',
               borderLeftColor: 'success.main',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 3,
+              }
             }}
           >
             <Typography color="text.secondary" variant="caption" component="div">
               TAGS
             </Typography>
             <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
-              {formatNumber(tags.length)}
+              {formatNumber(tagsData.tags.length)}
             </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
-              Functional categories
-            </Typography>
+            <Box sx={{ mt: 'auto', pt: 1 }}>
+              {tagsData.tags.length > 0 ? (
+                <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5 }}>
+                  {tagsData.tags.slice(0, 3).map(tag => (
+                    <Chip 
+                      key={tag} 
+                      label={tag} 
+                      size="small" 
+                      sx={{ height: 20, '& .MuiChip-label': { px: 1 } }}
+                    />
+                  ))}
+                  {tagsData.tags.length > 3 && (
+                    <Chip 
+                      label={`+${tagsData.tags.length - 3}`} 
+                      size="small"
+                      sx={{ height: 20, '& .MuiChip-label': { px: 1 } }}
+                    />
+                  )}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary" variant="body2">
+                  No tags defined
+                </Typography>
+              )}
+            </Box>
           </Paper>
         </Grid>
         
@@ -736,7 +1212,12 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               borderLeft: '4px solid',
               borderLeftColor: 'info.main',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 3,
+              }
             }}
           >
             <Typography color="text.secondary" variant="caption" component="div">
@@ -745,7 +1226,7 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
             <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
               {pathComplexity.score}
             </Typography>
-            <Box sx={{ mt: 'auto', pt: 1, display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ mt: 'auto', pt: 1 }}>
               <Chip 
                 label={pathComplexity.level} 
                 size="small" 
@@ -753,10 +1234,10 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
                   pathComplexity.level === 'low' ? 'success' :
                   pathComplexity.level === 'medium' ? 'warning' : 'error'
                 }
-                sx={{ textTransform: 'capitalize' }}
+                sx={{ textTransform: 'capitalize', mb: 0.5 }}
               />
-              <Typography color="text.secondary" variant="caption" sx={{ ml: 1 }}>
-                Operations per path
+              <Typography color="text.secondary" variant="caption" sx={{ display: 'block' }}>
+                {pathComplexity.assessment}
               </Typography>
             </Box>
           </Paper>
@@ -764,58 +1245,143 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
       </Grid>
       
       {/* HTTP Methods Distribution */}
-      <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+      <Paper 
+        variant="outlined" 
+        sx={{ 
+          p: 2, 
+          mt: 2,
+          transition: 'transform 0.2s, box-shadow 0.2s',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: 2,
+          }
+        }}
+      >
         <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
           <HubIcon fontSize="small" /> HTTP Methods Distribution
         </Typography>
         
-        <Grid container spacing={1}>
-          {Object.entries(methodCounts).map(([method, count]) => {
-            if (count === 0) return null;
-            
-            const methodColor = 
-              method === 'get' ? 'success.main' :
-              method === 'post' ? 'primary.main' :
-              method === 'put' ? 'warning.main' :
-              method === 'delete' ? 'error.main' :
-              method === 'patch' ? 'info.main' : 'text.disabled';
-            
-            // Calculate percentage
-            const percentage = Math.round((count / validationResult.stats.endpoints) * 100);
-            
-            return (
-              <Grid key={method} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Box 
-                    sx={{ 
-                      width: 10, 
-                      height: 10, 
-                      borderRadius: '50%', 
-                      bgcolor: methodColor,
-                      mr: 1
-                    }} 
-                  />
-                  <Typography variant="body2" sx={{ textTransform: 'uppercase' }}>
-                    {method}
+        <Grid container spacing={2}>
+          {/* Method distribution chart */}
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Grid container spacing={1}>
+              {Object.entries(operationsAnalysis.methodCounts).map(([method, count]) => {
+                if (count === 0) return null;
+                
+                const methodColor = 
+                  method === 'get' ? 'success.main' :
+                  method === 'post' ? 'primary.main' :
+                  method === 'put' ? 'warning.main' :
+                  method === 'delete' ? 'error.main' :
+                  method === 'patch' ? 'info.main' : 'text.disabled';
+                
+                // Calculate percentage
+                const percentage = Math.round((count / operationsAnalysis.totalOperations) * 100);
+                
+                return (
+                  <Grid key={method} size={{ xs: 12 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <Box 
+                        sx={{ 
+                          width: 12, 
+                          height: 12, 
+                          borderRadius: '50%', 
+                          bgcolor: methodColor,
+                          mr: 1
+                        }} 
+                      />
+                      <Typography variant="body2" sx={{ textTransform: 'uppercase', width: 60 }}>
+                        {method}
+                      </Typography>
+                      <Box sx={{ flexGrow: 1, mx: 1 }}>
+                        <Box sx={{ height: 10, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden', position: 'relative' }}>
+                          <Box 
+                            sx={{ 
+                              height: '100%', 
+                              width: `${percentage}%`, 
+                              bgcolor: methodColor,
+                              transition: 'width 1s ease-in-out',
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                            }} 
+                          />
+                        </Box>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 70, textAlign: 'right' }}>
+                        {count} ({percentage}%)
+                      </Typography>
+                    </Box>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </Grid>
+          
+          {/* Method stats */}
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+                <Box sx={{ 
+                  p: 1.5, 
+                  border: '1px solid', 
+                  borderColor: 'divider', 
+                  borderRadius: 1,
+                  textAlign: 'center',
+                  minWidth: 100
+                }}>
+                  <Typography variant="h5" fontWeight="bold">
+                    {operationsAnalysis.parametersCount}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
-                    {count} ({percentage}%)
+                  <Typography variant="caption" color="text.secondary">
+                    Parameters
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    ({operationsAnalysis.requiredParametersCount} required)
                   </Typography>
                 </Box>
                 
-                <Box sx={{ height: 8, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden' }}>
-                  <Box 
-                    sx={{ 
-                      height: '100%', 
-                      width: `${percentage}%`, 
-                      bgcolor: methodColor,
-                      transition: 'width 1s ease-in-out'
-                    }} 
-                  />
+                <Box sx={{ 
+                  p: 1.5, 
+                  border: '1px solid', 
+                  borderColor: 'divider', 
+                  borderRadius: 1,
+                  textAlign: 'center',
+                  minWidth: 100
+                }}>
+                  <Typography variant="h5" fontWeight="bold">
+                    {operationsAnalysis.responsesCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Responses
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    ({(operationsAnalysis.responsesCount / Math.max(1, operationsAnalysis.totalOperations)).toFixed(1)} per endpoint)
+                  </Typography>
                 </Box>
-              </Grid>
-            );
-          })}
+                
+                <Box sx={{ 
+                  p: 1.5, 
+                  border: '1px solid', 
+                  borderColor: operationsAnalysis.hasAuthCount > 0 ? 'success.light' : 'warning.light', 
+                  borderRadius: 1,
+                  textAlign: 'center',
+                  minWidth: 100,
+                  bgcolor: operationsAnalysis.hasAuthCount > 0 ? 'success.lightest' : 'warning.lightest',
+                }}>
+                  <Typography variant="h5" fontWeight="bold" color={operationsAnalysis.hasAuthCount > 0 ? 'success.main' : 'warning.main'}>
+                    {Math.round((operationsAnalysis.hasAuthCount / Math.max(1, operationsAnalysis.totalOperations)) * 100)}%
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Secured
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    ({operationsAnalysis.hasAuthCount} endpoints)
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
         </Grid>
       </Paper>
       
@@ -823,7 +1389,19 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
       <Grid container spacing={2} sx={{ mt: 0.5 }}>
         {/* API Metadata */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper variant="outlined" sx={{ p: 2, mt: 1.5, height: '100%' }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              mt: 1.5, 
+              height: '100%',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: 2,
+              }
+            }}
+          >
             <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <InfoIcon fontSize="small" /> API Metadata
             </Typography>
@@ -853,6 +1431,38 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               )}
               
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">Documentation</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ width: 60, height: 4, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden', mr: 1 }}>
+                    <Box 
+                      sx={{ 
+                        height: '100%', 
+                        width: `${Math.min(100, operationsAnalysis.documentationScore * 20)}%`, 
+                        bgcolor: 
+                          operationsAnalysis.documentationScore >= 4 ? 'success.main' :
+                          operationsAnalysis.documentationScore >= 2.5 ? 'primary.main' :
+                          operationsAnalysis.documentationScore >= 1.5 ? 'warning.main' : 'error.main',
+                      }} 
+                    />
+                  </Box>
+                  <Chip 
+                    label={
+                      operationsAnalysis.documentationScore >= 4 ? 'Excellent' :
+                      operationsAnalysis.documentationScore >= 2.5 ? 'Good' :
+                      operationsAnalysis.documentationScore >= 1.5 ? 'Fair' : 'Poor'
+                    } 
+                    size="small" 
+                    color={
+                      operationsAnalysis.documentationScore >= 4 ? 'success' :
+                      operationsAnalysis.documentationScore >= 2.5 ? 'primary' :
+                      operationsAnalysis.documentationScore >= 1.5 ? 'warning' : 'error'
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2">Contact Info</Typography>
                 <Chip 
                   label={hasContact ? 'Available' : 'Not defined'} 
@@ -873,20 +1483,44 @@ const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: an
               </Box>
               
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="body2">Deprecated Endpoints</Typography>
+                <Typography variant="body2">External Docs</Typography>
                 <Chip 
-                  label={hasDeprecatedEndpoints ? 'Present' : 'None'} 
+                  label={hasExternalDocs ? 'Available' : 'Not defined'} 
                   size="small" 
-                  color={hasDeprecatedEndpoints ? 'warning' : 'success'}
+                  color={hasExternalDocs ? 'info' : 'default'}
+                  variant={hasExternalDocs ? 'filled' : 'outlined'}
                 />
               </Box>
+              
+              {operationsAnalysis.deprecatedCount > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2">Deprecated Endpoints</Typography>
+                  <Chip 
+                    label={`${operationsAnalysis.deprecatedCount} endpoints`} 
+                    size="small" 
+                    color="warning"
+                  />
+                </Box>
+              )}
             </Stack>
           </Paper>
         </Grid>
         
         {/* Security */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper variant="outlined" sx={{ p: 2, mt: 1.5, height: '100%' }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              mt: 1.5, 
+              height: '100%',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: 2,
+              }
+            }}
+          >
             <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <SecurityIcon fontSize="small" /> Security & Servers
             </Typography>
@@ -1524,7 +2158,20 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
               )}
             </Stack>
             
-            <ApiStatisticsPanel oasDocument={oasDocument} validationResult={validationResult} />
+            <Accordion defaultExpanded={false} variant="outlined" sx={{ mt: 1 }}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="api-statistics-content"
+                id="api-statistics-header"
+              >
+                <Typography variant="body1">
+                  View detailed API statistics and quality metrics
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <ApiStatisticsPanel oasDocument={oasDocument} validationResult={validationResult} />
+              </AccordionDetails>
+            </Accordion>
           </Box>
           
           {oasDocument && (
@@ -1578,31 +2225,109 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
                   </Tabs>
                 </Box>
                 <TabPanel value={tabValue} index={0}>
-                  {renderEndpointsTable()}
+                  <Accordion defaultExpanded={false} variant="outlined">
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="endpoints-content"
+                      id="endpoints-header"
+                    >
+                      <Typography variant="body1">
+                        Expand to view all API endpoints
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {renderEndpointsTable()}
+                    </AccordionDetails>
+                  </Accordion>
                 </TabPanel>
                 <TabPanel value={tabValue} index={1}>
-                  {renderSchemasTable()}
+                  <Accordion defaultExpanded={false} variant="outlined">
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="schemas-content"
+                      id="schemas-header"
+                    >
+                      <Typography variant="body1">
+                        Expand to view all data schemas
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {renderSchemasTable()}
+                    </AccordionDetails>
+                  </Accordion>
                 </TabPanel>
                 <TabPanel value={tabValue} index={2}>
-                  <EndpointsVisualization oasDocument={oasDocument} />
+                  <Accordion defaultExpanded={false} variant="outlined">
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="visualization-content"
+                      id="visualization-header"
+                    >
+                      <Typography variant="body1">
+                        Expand to view API visualization
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <EndpointsVisualization oasDocument={oasDocument} />
+                    </AccordionDetails>
+                  </Accordion>
                 </TabPanel>
                 <TabPanel value={tabValue} index={3}>
-                  <ApiVersionComparison oasDocument={oasDocument} />
+                  <Accordion defaultExpanded={false} variant="outlined">
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="version-compare-content"
+                      id="version-compare-header"
+                    >
+                      <Typography variant="body1">
+                        Expand to view version comparison
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <ApiVersionComparison oasDocument={oasDocument} />
+                    </AccordionDetails>
+                  </Accordion>
                 </TabPanel>
                 <TabPanel value={tabValue} index={4}>
-                  {renderRawJson()}
+                  <Accordion defaultExpanded={false} variant="outlined">
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls="raw-json-content"
+                      id="raw-json-header"
+                    >
+                      <Typography variant="body1">
+                        Expand to view raw JSON specification
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      {renderRawJson()}
+                    </AccordionDetails>
+                  </Accordion>
                 </TabPanel>
                 {validationResult.errors.length > 0 && (
                   <TabPanel value={tabValue} index={5}>
-                    <Stack spacing={1}>
-                      {validationResult.errors.map((error, index) => (
-                        <Alert key={index} severity="error" variant="outlined">
-                          <Typography variant="body2">
-                            <strong>{error.path}</strong>: {error.message}
-                          </Typography>
-                        </Alert>
-                      ))}
-                    </Stack>
+                    <Accordion defaultExpanded={true} variant="outlined">
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        aria-controls="errors-content"
+                        id="errors-header"
+                      >
+                        <Typography variant="body1" sx={{ color: 'error.main' }}>
+                          {validationResult.errors.length} validation errors found
+                        </Typography>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Stack spacing={1}>
+                          {validationResult.errors.map((error, index) => (
+                            <Alert key={index} severity="error" variant="outlined">
+                              <Typography variant="body2">
+                                <strong>{error.path}</strong>: {error.message}
+                              </Typography>
+                            </Alert>
+                          ))}
+                        </Stack>
+                      </AccordionDetails>
+                    </Accordion>
                   </TabPanel>
                 )}
               </Box>
