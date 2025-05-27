@@ -10,6 +10,7 @@ export interface OasValidationResult {
     schemas: number;
     version: string;
   };
+  document?: any; // The parsed OpenAPI document
 }
 
 // Function to read file as text
@@ -206,6 +207,7 @@ export const validateOasDocument = async (source: File | string): Promise<OasVal
         schemas: countSchemas(spec),
         version: getSpecVersion(spec),
       },
+      document: spec, // Return the parsed document
     };
   } catch (error) {
     return {

@@ -18,6 +18,7 @@ const ApiPublishPage: React.FC = () => {
     isValidating,
     validationResult,
     publishResult,
+    oasDocument,
     handleValidate,
     handlePublish,
   } = useApiPublish();
@@ -53,6 +54,7 @@ const ApiPublishPage: React.FC = () => {
         <ValidationStep
           isValidating={isValidating}
           validationResult={validationResult}
+          oasDocument={oasDocument}
           onValidate={handleValidate}
         />
       ),

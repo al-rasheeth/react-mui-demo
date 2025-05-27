@@ -94,6 +94,7 @@ export function useApiPublish() {
   const [validationResult, setValidationResult] = useState<OasValidationResult | null>(null);
   const [publishResult, setPublishResult] = useState<PublishApiResponse | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [oasDocument, setOasDocument] = useState<any | null>(null);
 
   // Update service options when category changes
   useEffect(() => {
@@ -109,6 +110,7 @@ export function useApiPublish() {
     const values = getValues();
     setIsValidating(true);
     setValidationResult(null);
+    setOasDocument(null);
     
     try {
       const source = values.importType === 'file' ? values.fileSource : values.urlSource;
@@ -118,6 +120,9 @@ export function useApiPublish() {
       
       const result = await ApiPublishService.validateSpec(source);
       setValidationResult(result);
+      if (result.document) {
+        setOasDocument(result.document);
+      }
       return result;
     } catch (error) {
       console.error('Validation error:', error);
@@ -182,6 +187,7 @@ export function useApiPublish() {
     validationResult,
     isPublishing,
     publishResult,
+    oasDocument,
     handleValidate,
     handlePublish,
   };
