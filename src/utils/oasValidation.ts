@@ -1,5 +1,6 @@
 import axios from 'axios';
 import yaml from 'js-yaml';
+import OpenAPISchemaValidator from 'openapi-schema-validator';
 
 // Interface for validation results
 export interface OasValidationResult {
@@ -191,25 +192,75 @@ export const validateOasDocument = async (source: File | string): Promise<OasVal
       spec = parseSpecContent(content);
     }
     
-    // Check OpenAPI version
-    const versionCheck = validateOpenApiVersion(spec);
+    // Determine the OpenAPI version
+    const version = spec.openapi || (spec.swagger === '2.0' ? '2.0' : null);
+    
+    if (!version) {
+      return {
+        valid: false,
+        errors: [{ path: '', message: 'Invalid OpenAPI document: no version detected' }],
+        stats: {
+          endpoints: 0,
+          schemas: 0,
+          version: 'unknown',
+        },
+        document: spec
+      };
+    }
+    
+    // Choose appropriate validator version based on OpenAPI version
+    const validatorVersion = version.startsWith('3.1') ? 3 : 
+                            version.startsWith('3.0') ? 3 : 
+                            version.startsWith('2.0') ? 2 : null;
+    
+    if (!validatorVersion) {
+      return {
+        valid: false,
+        errors: [{ path: '', message: `Unsupported OpenAPI version: ${version}` }],
+        stats: {
+          endpoints: 0,
+          schemas: 0,
+          version
+        },
+        document: spec
+      };
+    }
+    
+    // Create the validator using the openapi-schema-validator library
+    const validator = new OpenAPISchemaValidator({ version: validatorVersion });
+    
+    // Validate the document
+    const result = validator.validate(spec);
+    
+    // Build validation results
+    const validationErrors = result.errors.map(error => {
+      // Use type assertion for the error object
+      const anyError = error as any;
+      
+      // Extract path and message safely
+      const path = anyError.dataPath || anyError.instancePath || anyError.schemaPath || '';
+      const message = anyError.message || 'Unknown validation error';
+      
+      return { path, message };
+    });
+    
+    // Add any structural validation we still want to perform
     const structureErrors = validateStructure(spec);
     
-    const errors = versionCheck.valid 
-      ? structureErrors 
-      : [{ path: '/openapi', message: versionCheck.message || 'Invalid OpenAPI version' }, ...structureErrors];
+    // Combine the errors
+    const allErrors = [...validationErrors, ...structureErrors];
     
     return {
-      valid: versionCheck.valid && structureErrors.length === 0,
-      errors,
+      valid: allErrors.length === 0,
+      errors: allErrors,
       stats: {
         endpoints: countEndpoints(spec),
         schemas: countSchemas(spec),
         version: getSpecVersion(spec),
       },
-      document: spec, // Return the parsed document
+      document: spec
     };
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       valid: false,
       errors: [{ 
