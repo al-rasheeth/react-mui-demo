@@ -46,6 +46,7 @@ import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import EditIcon from '@mui/icons-material/Edit';
+import LanguageIcon from '@mui/icons-material/Language';
 import { OasValidationResult } from '../../utils/oasValidation';
 import SchemaViewer from './SchemaViewer';
 
@@ -77,275 +78,6 @@ function TabPanel(props: TabPanelProps) {
     </div>
   );
 }
-
-interface EndpointDetailProps {
-  path: string;
-  method: string;
-  operation: any;
-}
-
-const EndpointDetail: React.FC<EndpointDetailProps> = ({ path, method, operation }) => {
-  const [detailTab, setDetailTab] = useState(0);
-
-  const handleDetailTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setDetailTab(newValue);
-  };
-
-  // Format parameters table
-  const renderParameters = () => {
-    if (!operation.parameters || operation.parameters.length === 0) {
-      return <Alert severity="info">No parameters defined for this endpoint.</Alert>;
-    }
-
-    return (
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>In</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Required</TableCell>
-              <TableCell>Description</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {operation.parameters.map((param: any, index: number) => (
-              <TableRow key={index}>
-                <TableCell>{param.name}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={param.in} 
-                    size="small" 
-                    color={
-                      param.in === 'path' ? 'primary' :
-                      param.in === 'query' ? 'secondary' :
-                      param.in === 'header' ? 'default' :
-                      param.in === 'cookie' ? 'warning' : 'default'
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  {param.schema?.type || param.type || '-'}
-                  {param.schema?.format && ` (${param.schema.format})`}
-                </TableCell>
-                <TableCell>{param.required ? 'Yes' : 'No'}</TableCell>
-                <TableCell>{param.description || '-'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
-  };
-
-  // Format request body information
-  const renderRequestBody = () => {
-    if (!operation.requestBody) {
-      return <Alert severity="info">No request body defined for this endpoint.</Alert>;
-    }
-
-    const content = operation.requestBody.content;
-    if (!content) return null;
-
-    return (
-      <Stack spacing={2}>
-        {operation.requestBody.description && (
-          <Typography variant="body2" color="text.secondary">
-            {operation.requestBody.description}
-          </Typography>
-        )}
-        <Typography variant="subtitle2">
-          Required: {operation.requestBody.required ? 'Yes' : 'No'}
-        </Typography>
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>Content Types:</Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            {Object.keys(content).map((contentType) => (
-              <Chip 
-                key={contentType} 
-                label={contentType} 
-                size="small"
-              />
-            ))}
-          </Stack>
-        </Box>
-        {Object.entries(content).map(([contentType, contentDesc]: [string, any]) => (
-          <Box key={contentType}>
-            <Typography variant="subtitle2" gutterBottom>
-              Schema for {contentType}:
-            </Typography>
-            <Box 
-              sx={{ 
-                p: 1, 
-                bgcolor: 'background.paper', 
-                borderRadius: 1,
-                border: '1px solid',
-                borderColor: 'divider'
-              }}
-            >
-              <pre style={{ margin: 0, fontSize: '0.75rem', overflow: 'auto' }}>
-                {JSON.stringify(contentDesc.schema, null, 2)}
-              </pre>
-            </Box>
-          </Box>
-        ))}
-      </Stack>
-    );
-  };
-
-  // Format responses information
-  const renderResponses = () => {
-    if (!operation.responses) {
-      return <Alert severity="info">No responses defined for this endpoint.</Alert>;
-    }
-
-    return (
-      <Stack spacing={2}>
-        {Object.entries(operation.responses).map(([statusCode, response]: [string, any]) => (
-          <Accordion key={statusCode} variant="outlined">
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Chip 
-                  label={statusCode} 
-                  size="small"
-                  color={
-                    statusCode.startsWith('2') ? 'success' :
-                    statusCode.startsWith('4') ? 'warning' :
-                    statusCode.startsWith('5') ? 'error' : 'default'
-                  }
-                />
-                <Typography variant="body2">
-                  {response.description || 'No description'}
-                </Typography>
-              </Stack>
-            </AccordionSummary>
-            <AccordionDetails>
-              {response.content ? (
-                <Stack spacing={2}>
-                  {Object.entries(response.content).map(([contentType, contentDesc]: [string, any]) => (
-                    <Box key={contentType}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        {contentType}:
-                      </Typography>
-                      {contentDesc.schema && (
-                        <Box 
-                          sx={{ 
-                            p: 1, 
-                            bgcolor: 'background.paper', 
-                            borderRadius: 1,
-                            border: '1px solid',
-                            borderColor: 'divider'
-                          }}
-                        >
-                          <pre style={{ margin: 0, fontSize: '0.75rem', overflow: 'auto' }}>
-                            {JSON.stringify(contentDesc.schema, null, 2)}
-                          </pre>
-                        </Box>
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
-              ) : (
-                <Typography variant="body2">No content type defined.</Typography>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        ))}
-      </Stack>
-    );
-  };
-
-  // Format security information
-  const renderSecurity = () => {
-    if (!operation.security || operation.security.length === 0) {
-      return <Alert severity="info">No security requirements defined for this endpoint.</Alert>;
-    }
-
-    return (
-      <Stack spacing={2}>
-        {operation.security.map((requirement: any, index: number) => (
-          <Paper key={index} variant="outlined" sx={{ p: 2 }}>
-            <Stack spacing={1}>
-              {Object.entries(requirement).map(([scheme, scopes]: [string, any]) => (
-                <Box key={scheme}>
-                  <Typography variant="subtitle2">{scheme}</Typography>
-                  {scopes && scopes.length > 0 && (
-                    <Box>
-                      <Typography variant="body2" gutterBottom>Required scopes:</Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        {scopes.map((scope: string) => (
-                          <Chip key={scope} label={scope} size="small" />
-                        ))}
-                      </Stack>
-                    </Box>
-                  )}
-                </Box>
-              ))}
-            </Stack>
-          </Paper>
-        ))}
-      </Stack>
-    );
-  };
-
-  return (
-    <Box sx={{ mt: 2 }}>
-      <Paper 
-        variant="outlined" 
-        sx={{ 
-          p: 2,
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-        }}
-      >
-        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Chip label={method} size="small" color={
-            method === 'GET' ? 'success' :
-            method === 'POST' ? 'primary' :
-            method === 'PUT' ? 'warning' :
-            method === 'DELETE' ? 'error' : 'default'
-          } />
-          {path}
-        </Typography>
-        
-        {operation.summary && (
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-            {operation.summary}
-          </Typography>
-        )}
-        
-        {operation.description && (
-          <Typography variant="body2" color="text.secondary" paragraph>
-            {operation.description}
-          </Typography>
-        )}
-        
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-          <Tabs value={detailTab} onChange={handleDetailTabChange} aria-label="endpoint details tabs">
-            <Tab icon={<InfoIcon />} label="Parameters" id="endpoint-tab-0" />
-            <Tab icon={<JsonIcon />} label="Request" id="endpoint-tab-1" />
-            <Tab icon={<TerminalIcon />} label="Responses" id="endpoint-tab-2" />
-            <Tab icon={<SecurityIcon />} label="Security" id="endpoint-tab-3" />
-          </Tabs>
-        </Box>
-        
-        <TabPanel value={detailTab} index={0}>
-          {renderParameters()}
-        </TabPanel>
-        <TabPanel value={detailTab} index={1}>
-          {renderRequestBody()}
-        </TabPanel>
-        <TabPanel value={detailTab} index={2}>
-          {renderResponses()}
-        </TabPanel>
-        <TabPanel value={detailTab} index={3}>
-          {renderSecurity()}
-        </TabPanel>
-      </Paper>
-    </Box>
-  );
-};
 
 // Add a visualization component for endpoints
 const EndpointsVisualization: React.FC<{ oasDocument: any }> = ({ oasDocument }) => {
@@ -782,6 +514,481 @@ const ApiVersionComparison: React.FC<{ oasDocument: any }> = ({ oasDocument }) =
   );
 };
 
+// Add this new component for enhanced statistics display
+const ApiStatisticsPanel = ({ oasDocument, validationResult }: { oasDocument: any, validationResult: OasValidationResult }) => {
+  if (!oasDocument) return null;
+  
+  // Get all unique tags in the API
+  const getTags = () => {
+    const tagSet = new Set<string>();
+    
+    if (oasDocument.tags) {
+      oasDocument.tags.forEach((tag: any) => tagSet.add(tag.name));
+    }
+    
+    // Also collect tags from operations
+    if (oasDocument.paths) {
+      Object.values(oasDocument.paths).forEach((pathItem: any) => {
+        const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
+        methods.forEach(method => {
+          if (pathItem[method] && pathItem[method].tags) {
+            pathItem[method].tags.forEach((tag: string) => tagSet.add(tag));
+          }
+        });
+      });
+    }
+    
+    return Array.from(tagSet);
+  };
+  
+  // Count HTTP methods
+  const countMethods = () => {
+    const methodCounts: Record<string, number> = {
+      get: 0,
+      post: 0,
+      put: 0,
+      delete: 0,
+      patch: 0,
+      options: 0,
+      head: 0
+    };
+    
+    if (oasDocument.paths) {
+      Object.values(oasDocument.paths).forEach((pathItem: any) => {
+        Object.keys(methodCounts).forEach(method => {
+          if (pathItem[method]) {
+            methodCounts[method]++;
+          }
+        });
+      });
+    }
+    
+    return methodCounts;
+  };
+  
+  // Get security schemes
+  const getSecuritySchemes = () => {
+    if (oasDocument.components?.securitySchemes) {
+      return Object.entries(oasDocument.components.securitySchemes);
+    }
+    
+    // For OpenAPI 2.0
+    if (oasDocument.securityDefinitions) {
+      return Object.entries(oasDocument.securityDefinitions);
+    }
+    
+    return [];
+  };
+  
+  // Extract server information
+  const getServers = () => {
+    if (oasDocument.servers && oasDocument.servers.length > 0) {
+      return oasDocument.servers;
+    }
+    
+    // For OpenAPI 2.0
+    if (oasDocument.host) {
+      const basePath = oasDocument.basePath || '';
+      const schemes = oasDocument.schemes || ['https'];
+      
+      return schemes.map((scheme: string) => ({
+        url: `${scheme}://${oasDocument.host}${basePath}`,
+        description: 'Server inferred from OpenAPI 2.0 specification'
+      }));
+    }
+    
+    return [];
+  };
+  
+  // Format number with commas for better readability
+  const formatNumber = (num: number): string => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+  
+  // Calculate path complexity (average operations per path)
+  const calculatePathComplexity = (): { score: number, level: 'low' | 'medium' | 'high' } => {
+    if (!oasDocument.paths || Object.keys(oasDocument.paths).length === 0) {
+      return { score: 0, level: 'low' };
+    }
+    
+    const paths = Object.keys(oasDocument.paths).length;
+    const operations = validationResult.stats.endpoints;
+    const score = operations / paths;
+    
+    let level: 'low' | 'medium' | 'high' = 'low';
+    if (score >= 3) level = 'high';
+    else if (score >= 1.5) level = 'medium';
+    
+    return { score: parseFloat(score.toFixed(1)), level };
+  };
+  
+  const tags = getTags();
+  const methodCounts = countMethods();
+  const securitySchemes = getSecuritySchemes();
+  const servers = getServers();
+  const pathComplexity = calculatePathComplexity();
+  
+  // Calculate total paths
+  const totalPaths = oasDocument.paths ? Object.keys(oasDocument.paths).length : 0;
+  
+  // Check if info has contact and license
+  const hasContact = oasDocument.info?.contact && Object.keys(oasDocument.info.contact).length > 0;
+  const hasLicense = oasDocument.info?.license && Object.keys(oasDocument.info.license).length > 0;
+  
+  // Check if API has deprecated endpoints
+  const hasDeprecatedEndpoints = (() => {
+    if (!oasDocument.paths) return false;
+    
+    for (const path of Object.values(oasDocument.paths) as any[]) {
+      const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
+      for (const method of methods) {
+        if (path[method] && path[method].deprecated) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  })();
+  
+  return (
+    <Box sx={{ mt: 2 }}>
+      {/* Summary Cards */}
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              height: '100%',
+              borderLeft: '4px solid',
+              borderLeftColor: 'primary.main',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <Typography color="text.secondary" variant="caption" component="div">
+              ENDPOINTS
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
+              {formatNumber(validationResult.stats.endpoints)}
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
+              Across {formatNumber(totalPaths)} paths
+            </Typography>
+          </Paper>
+        </Grid>
+        
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              height: '100%',
+              borderLeft: '4px solid',
+              borderLeftColor: 'secondary.main',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <Typography color="text.secondary" variant="caption" component="div">
+              SCHEMAS
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
+              {formatNumber(validationResult.stats.schemas)}
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
+              Data models & objects
+            </Typography>
+          </Paper>
+        </Grid>
+        
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              height: '100%',
+              borderLeft: '4px solid',
+              borderLeftColor: 'success.main',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <Typography color="text.secondary" variant="caption" component="div">
+              TAGS
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
+              {formatNumber(tags.length)}
+            </Typography>
+            <Typography color="text.secondary" variant="body2" sx={{ mt: 'auto', pt: 1 }}>
+              Functional categories
+            </Typography>
+          </Paper>
+        </Grid>
+        
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              height: '100%',
+              borderLeft: '4px solid',
+              borderLeftColor: 'info.main',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <Typography color="text.secondary" variant="caption" component="div">
+              COMPLEXITY
+            </Typography>
+            <Typography variant="h4" component="div" fontWeight="bold" sx={{ mt: 1 }}>
+              {pathComplexity.score}
+            </Typography>
+            <Box sx={{ mt: 'auto', pt: 1, display: 'flex', alignItems: 'center' }}>
+              <Chip 
+                label={pathComplexity.level} 
+                size="small" 
+                color={
+                  pathComplexity.level === 'low' ? 'success' :
+                  pathComplexity.level === 'medium' ? 'warning' : 'error'
+                }
+                sx={{ textTransform: 'capitalize' }}
+              />
+              <Typography color="text.secondary" variant="caption" sx={{ ml: 1 }}>
+                Operations per path
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+      
+      {/* HTTP Methods Distribution */}
+      <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+        <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HubIcon fontSize="small" /> HTTP Methods Distribution
+        </Typography>
+        
+        <Grid container spacing={1}>
+          {Object.entries(methodCounts).map(([method, count]) => {
+            if (count === 0) return null;
+            
+            const methodColor = 
+              method === 'get' ? 'success.main' :
+              method === 'post' ? 'primary.main' :
+              method === 'put' ? 'warning.main' :
+              method === 'delete' ? 'error.main' :
+              method === 'patch' ? 'info.main' : 'text.disabled';
+            
+            // Calculate percentage
+            const percentage = Math.round((count / validationResult.stats.endpoints) * 100);
+            
+            return (
+              <Grid key={method} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Box 
+                    sx={{ 
+                      width: 10, 
+                      height: 10, 
+                      borderRadius: '50%', 
+                      bgcolor: methodColor,
+                      mr: 1
+                    }} 
+                  />
+                  <Typography variant="body2" sx={{ textTransform: 'uppercase' }}>
+                    {method}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
+                    {count} ({percentage}%)
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ height: 8, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden' }}>
+                  <Box 
+                    sx={{ 
+                      height: '100%', 
+                      width: `${percentage}%`, 
+                      bgcolor: methodColor,
+                      transition: 'width 1s ease-in-out'
+                    }} 
+                  />
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Paper>
+      
+      {/* API Details */}
+      <Grid container spacing={2} sx={{ mt: 0.5 }}>
+        {/* API Metadata */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper variant="outlined" sx={{ p: 2, mt: 1.5, height: '100%' }}>
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <InfoIcon fontSize="small" /> API Metadata
+            </Typography>
+            
+            <Stack spacing={2}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">OpenAPI Version</Typography>
+                <Chip 
+                  label={validationResult.stats.version} 
+                  size="small" 
+                  color="primary"
+                />
+              </Box>
+              
+              {oasDocument.info?.title && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2">Title</Typography>
+                  <Typography variant="body2" fontWeight="medium">{oasDocument.info.title}</Typography>
+                </Box>
+              )}
+              
+              {oasDocument.info?.version && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2">API Version</Typography>
+                  <Typography variant="body2">{oasDocument.info.version}</Typography>
+                </Box>
+              )}
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">Contact Info</Typography>
+                <Chip 
+                  label={hasContact ? 'Available' : 'Not defined'} 
+                  size="small" 
+                  color={hasContact ? 'success' : 'default'}
+                  variant={hasContact ? 'filled' : 'outlined'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">License</Typography>
+                <Chip 
+                  label={hasLicense ? 'Available' : 'Not defined'} 
+                  size="small" 
+                  color={hasLicense ? 'success' : 'default'}
+                  variant={hasLicense ? 'filled' : 'outlined'}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2">Deprecated Endpoints</Typography>
+                <Chip 
+                  label={hasDeprecatedEndpoints ? 'Present' : 'None'} 
+                  size="small" 
+                  color={hasDeprecatedEndpoints ? 'warning' : 'success'}
+                />
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+        
+        {/* Security */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper variant="outlined" sx={{ p: 2, mt: 1.5, height: '100%' }}>
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SecurityIcon fontSize="small" /> Security & Servers
+            </Typography>
+            
+            {securitySchemes.length > 0 ? (
+              <>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Security Schemes ({securitySchemes.length})
+                </Typography>
+                <Stack spacing={1} sx={{ mb: 3 }}>
+                  {securitySchemes.map(([name, scheme]: [string, any], index) => (
+                    <Box 
+                      key={name} 
+                      sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        p: 1, 
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <Chip 
+                        label={scheme.type} 
+                        size="small"
+                        color={
+                          scheme.type === 'oauth2' ? 'primary' :
+                          scheme.type === 'apiKey' ? 'secondary' :
+                          scheme.type === 'http' ? 'success' :
+                          scheme.type === 'openIdConnect' ? 'info' : 'default'
+                        }
+                      />
+                      <Typography variant="body2" sx={{ ml: 1.5, fontWeight: 'medium' }}>
+                        {name}
+                      </Typography>
+                      {scheme.scheme && (
+                        <Chip 
+                          label={scheme.scheme} 
+                          size="small" 
+                          variant="outlined" 
+                          sx={{ ml: 'auto' }}
+                        />
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+              </>
+            ) : (
+              <Alert severity="info" sx={{ mb: 2 }}>No security schemes defined</Alert>
+            )}
+            
+            {/* Servers */}
+            {servers.length > 0 ? (
+              <>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Server Environments ({servers.length})
+                </Typography>
+                <Stack spacing={1}>
+                  {servers.map((server: any, index: number) => (
+                    <Box 
+                      key={index} 
+                      sx={{ 
+                        p: 1, 
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <LanguageIcon fontSize="small" sx={{ color: 'primary.main', mr: 1 }} />
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontFamily: 'monospace', 
+                            fontWeight: 'medium',
+                            wordBreak: 'break-all'
+                          }}
+                        >
+                          {server.url}
+                        </Typography>
+                      </Box>
+                      {server.description && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          {server.description}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+              </>
+            ) : (
+              <Alert severity="info">No servers defined</Alert>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
 const ValidationStep: React.FC<ValidationStepProps> = ({ 
   isValidating, 
   validationResult, 
@@ -789,14 +996,9 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
   onValidate 
 }) => {
   const [tabValue, setTabValue] = useState(0);
-  const [selectedEndpoint, setSelectedEndpoint] = useState<{ path: string; method: string } | null>(null);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    // Reset selected endpoint when changing tabs
-    if (newValue !== 0) {
-      setSelectedEndpoint(null);
-    }
   };
 
   // Download the specification as a JSON file
@@ -826,88 +1028,386 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
 
   // Render endpoints table if we have the OAS document
   const renderEndpointsTable = () => {
-    if (!oasDocument || !oasDocument.paths) return null;
+    if (!oasDocument || !oasDocument.paths) {
+      return <Alert severity="info">No endpoints defined in this API specification.</Alert>;
+    }
 
-    const endpoints: Array<{path: string; method: string; summary: string; operationId?: string}> = [];
+    const paths = Object.keys(oasDocument.paths);
     
-    // Extract all endpoints
-    Object.entries(oasDocument.paths).forEach(([path, pathItem]: [string, any]) => {
+    if (paths.length === 0) {
+      return <Alert severity="info">No endpoints defined in this API specification.</Alert>;
+    }
+
+    // Group endpoints by tags
+    const endpointsByTag: Record<string, Array<{ path: string; method: string; operation: any }>> = {
+      'default': [] // For endpoints without tags
+    };
+    
+    // First, collect all tags and organize endpoints
+    paths.forEach(path => {
+      const pathItem = oasDocument.paths[path];
       const methods = ['get', 'post', 'put', 'delete', 'patch', 'options', 'head'];
+      
       methods.forEach(method => {
         if (pathItem[method]) {
-          endpoints.push({
-            path,
-            method: method.toUpperCase(),
-            summary: pathItem[method].summary || '-',
-            operationId: pathItem[method].operationId
+          const operation = pathItem[method];
+          const tags = operation.tags && operation.tags.length > 0 
+            ? operation.tags 
+            : ['default'];
+          
+          // Add endpoint to each of its tags
+          tags.forEach((tag: string) => {
+            if (!endpointsByTag[tag]) {
+              endpointsByTag[tag] = [];
+            }
+            
+            endpointsByTag[tag].push({
+              path,
+              method,
+              operation
+            });
           });
         }
       });
     });
+    
+    // Remove default tag if empty
+    if (endpointsByTag['default'].length === 0) {
+      delete endpointsByTag['default'];
+    }
+    
+    // Check if we have any endpoints to display
+    if (Object.keys(endpointsByTag).length === 0) {
+      return (
+        <Alert severity="warning">
+          The specification contains paths but no valid endpoints with operations were found.
+        </Alert>
+      );
+    }
+    
+    // Sort tags alphabetically but with 'default' at the end if it exists
+    const sortedTags = Object.keys(endpointsByTag).sort((a, b) => {
+      if (a === 'default') return 1;
+      if (b === 'default') return -1;
+      return a.localeCompare(b);
+    });
 
     return (
-      <Box>
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Method</TableCell>
-                <TableCell>Path</TableCell>
-                <TableCell>Operation ID</TableCell>
-                <TableCell>Summary</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {endpoints.map((endpoint, index) => (
-                <TableRow key={index}>
-                  <TableCell>
-                    <Chip 
-                      label={endpoint.method} 
-                      size="small"
-                      color={
-                        endpoint.method === 'GET' ? 'success' :
-                        endpoint.method === 'POST' ? 'primary' :
-                        endpoint.method === 'PUT' ? 'warning' :
-                        endpoint.method === 'DELETE' ? 'error' : 'default'
-                      }
-                    />
-                  </TableCell>
-                  <TableCell>{endpoint.path}</TableCell>
-                  <TableCell>{endpoint.operationId || '-'}</TableCell>
-                  <TableCell>{endpoint.summary}</TableCell>
-                  <TableCell>
-                    <Button 
-                      size="small" 
-                      variant="outlined"
-                      startIcon={<DescriptionIcon />}
-                      onClick={() => setSelectedEndpoint({ 
-                        path: endpoint.path, 
-                        method: endpoint.method.toLowerCase() 
-                      })}
-                    >
-                      Details
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {endpoints.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} align="center">No endpoints defined</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {selectedEndpoint && oasDocument.paths[selectedEndpoint.path] && (
-          <EndpointDetail 
-            path={selectedEndpoint.path}
-            method={selectedEndpoint.method}
-            operation={oasDocument.paths[selectedEndpoint.path][selectedEndpoint.method.toLowerCase()]}
-          />
-        )}
-      </Box>
+      <Stack spacing={2}>
+        {sortedTags.map(tag => (
+          <Accordion key={tag} variant="outlined" defaultExpanded={false}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                {tag === 'default' ? 'Uncategorized' : tag}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                ({endpointsByTag[tag].length} endpoints)
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                {/* Group by path within each tag */}
+                {(() => {
+                  // Group endpoints by path within this tag
+                  const pathsInTag: Record<string, Array<{ method: string; operation: any }>> = {};
+                  
+                  endpointsByTag[tag].forEach(endpoint => {
+                    if (!pathsInTag[endpoint.path]) {
+                      pathsInTag[endpoint.path] = [];
+                    }
+                    pathsInTag[endpoint.path].push({
+                      method: endpoint.method,
+                      operation: endpoint.operation
+                    });
+                  });
+                  
+                  // Sort paths alphabetically
+                  const sortedPaths = Object.keys(pathsInTag).sort();
+                  
+                  if (sortedPaths.length === 0) {
+                    return (
+                      <Alert severity="info">
+                        No endpoints found in this tag.
+                      </Alert>
+                    );
+                  }
+                  
+                  return sortedPaths.map(path => {
+                    const endpointMethods = pathsInTag[path];
+                    
+                    return (
+                      <Accordion key={path} variant="outlined" defaultExpanded={false}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Typography variant="subtitle1" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                            {path}
+                          </Typography>
+                          <Box sx={{ ml: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {endpointMethods.map(({ method }) => (
+                              <Chip 
+                                key={method}
+                                label={method.toUpperCase()} 
+                                size="small"
+                                color={
+                                  method === 'get' ? 'success' :
+                                  method === 'post' ? 'primary' :
+                                  method === 'put' ? 'warning' :
+                                  method === 'delete' ? 'error' :
+                                  method === 'patch' ? 'info' : 'default'
+                                }
+                              />
+                            ))}
+                          </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Stack spacing={2}>
+                            {endpointMethods.map(({ method, operation }) => (
+                              <Accordion 
+                                key={method} 
+                                variant="outlined"
+                                disableGutters
+                                defaultExpanded={false}
+                                sx={{ 
+                                  borderLeft: '4px solid',
+                                  borderLeftColor: 
+                                    method === 'get' ? 'success.main' :
+                                    method === 'post' ? 'primary.main' :
+                                    method === 'put' ? 'warning.main' :
+                                    method === 'delete' ? 'error.main' :
+                                    method === 'patch' ? 'info.main' : 'text.disabled'
+                                }}
+                              >
+                                <AccordionSummary 
+                                  expandIcon={<ExpandMoreIcon />}
+                                  sx={{ py: 1 }}
+                                >
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Chip 
+                                      label={method.toUpperCase()} 
+                                      color={
+                                        method === 'get' ? 'success' :
+                                        method === 'post' ? 'primary' :
+                                        method === 'put' ? 'warning' :
+                                        method === 'delete' ? 'error' :
+                                        method === 'patch' ? 'info' : 'default'
+                                      }
+                                    />
+                                    <Typography variant="subtitle1">
+                                      {operation.summary || `${method.toUpperCase()} ${path}`}
+                                    </Typography>
+                                    {operation.deprecated && (
+                                      <Chip label="Deprecated" color="error" size="small" />
+                                    )}
+                                  </Box>
+                                </AccordionSummary>
+                                <AccordionDetails sx={{ px: 2, py: 2 }}>
+                                  {operation.description && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                      {operation.description}
+                                    </Typography>
+                                  )}
+                                  
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                                    {operation.tags?.map((tagName: string) => (
+                                      <Chip key={tagName} label={tagName} size="small" variant="outlined" />
+                                    ))}
+                                  </Box>
+                                  
+                                  <Stack spacing={2}>
+                                    {/* Parameters */}
+                                    {operation.parameters && operation.parameters.length > 0 ? (
+                                      <Accordion variant="outlined" defaultExpanded={false}>
+                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                          <Typography variant="subtitle2">
+                                            Parameters ({operation.parameters.length})
+                                          </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                          <TableContainer component={Paper} variant="outlined">
+                                            <Table size="small">
+                                              <TableHead>
+                                                <TableRow>
+                                                  <TableCell>Name</TableCell>
+                                                  <TableCell>In</TableCell>
+                                                  <TableCell>Type</TableCell>
+                                                  <TableCell>Required</TableCell>
+                                                  <TableCell>Description</TableCell>
+                                                </TableRow>
+                                              </TableHead>
+                                              <TableBody>
+                                                {operation.parameters.map((param: any, idx: number) => (
+                                                  <TableRow key={idx}>
+                                                    <TableCell>{param.name}</TableCell>
+                                                    <TableCell>
+                                                      <Chip 
+                                                        label={param.in} 
+                                                        size="small" 
+                                                        color={
+                                                          param.in === 'path' ? 'primary' :
+                                                          param.in === 'query' ? 'secondary' :
+                                                          param.in === 'header' ? 'default' :
+                                                          param.in === 'cookie' ? 'warning' : 'default'
+                                                        }
+                                                      />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {param.schema?.type || param.type || '-'}
+                                                      {param.schema?.format && ` (${param.schema.format})`}
+                                                    </TableCell>
+                                                    <TableCell>{param.required ? 'Yes' : 'No'}</TableCell>
+                                                    <TableCell>{param.description || '-'}</TableCell>
+                                                  </TableRow>
+                                                ))}
+                                              </TableBody>
+                                            </Table>
+                                          </TableContainer>
+                                        </AccordionDetails>
+                                      </Accordion>
+                                    ) : null}
+                                    
+                                    {/* Request Body */}
+                                    {operation.requestBody && (
+                                      <Accordion variant="outlined" defaultExpanded={false}>
+                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                          <Typography variant="subtitle2">
+                                            Request Body {operation.requestBody.required && <span>(Required)</span>}
+                                          </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                          {operation.requestBody.description && (
+                                            <Typography variant="body2" paragraph>
+                                              {operation.requestBody.description}
+                                            </Typography>
+                                          )}
+                                          
+                                          {operation.requestBody.content && Object.keys(operation.requestBody.content).length > 0 ? (
+                                            <Box>
+                                              <Typography variant="subtitle2" gutterBottom>
+                                                Content Types:
+                                              </Typography>
+                                              
+                                              <Stack spacing={2}>
+                                                {Object.entries(operation.requestBody.content).map(([contentType, contentDesc]: [string, any]) => (
+                                                  <Box key={contentType}>
+                                                    <Chip label={contentType} size="small" sx={{ mb: 1 }} />
+                                                    
+                                                    {contentDesc.schema ? (
+                                                      <Box 
+                                                        sx={{ 
+                                                          p: 1, 
+                                                          bgcolor: 'background.default',
+                                                          borderRadius: 1,
+                                                          maxHeight: '200px',
+                                                          overflow: 'auto'
+                                                        }}
+                                                      >
+                                                        <pre style={{ margin: 0, fontSize: '0.75rem' }}>
+                                                          {JSON.stringify(contentDesc.schema, null, 2)}
+                                                        </pre>
+                                                      </Box>
+                                                    ) : (
+                                                      <Typography variant="body2" color="text.secondary">
+                                                        No schema defined for this content type.
+                                                      </Typography>
+                                                    )}
+                                                  </Box>
+                                                ))}
+                                              </Stack>
+                                            </Box>
+                                          ) : (
+                                            <Alert severity="info">
+                                              Request body is defined but no content types are specified.
+                                            </Alert>
+                                          )}
+                                        </AccordionDetails>
+                                      </Accordion>
+                                    )}
+                                    
+                                    {/* Responses */}
+                                    {operation.responses && Object.keys(operation.responses).length > 0 && (
+                                      <Accordion variant="outlined" defaultExpanded={false}>
+                                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                          <Typography variant="subtitle2">
+                                            Responses ({Object.keys(operation.responses).length})
+                                          </Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails>
+                                          <Stack spacing={1}>
+                                            {Object.entries(operation.responses).map(([statusCode, response]: [string, any]) => (
+                                              <Accordion key={statusCode} variant="outlined" defaultExpanded={false}>
+                                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                                  <Stack direction="row" spacing={2} alignItems="center">
+                                                    <Chip 
+                                                      label={statusCode} 
+                                                      size="small"
+                                                      color={
+                                                        statusCode.startsWith('2') ? 'success' :
+                                                        statusCode.startsWith('4') ? 'warning' :
+                                                        statusCode.startsWith('5') ? 'error' : 'default'
+                                                      }
+                                                    />
+                                                    <Typography variant="body2">
+                                                      {response.description || 'No description'}
+                                                    </Typography>
+                                                  </Stack>
+                                                </AccordionSummary>
+                                                <AccordionDetails>
+                                                  {response.content && Object.keys(response.content).length > 0 ? (
+                                                    <Stack spacing={2}>
+                                                      {Object.entries(response.content).map(([contentType, contentDesc]: [string, any]) => (
+                                                        <Box key={contentType}>
+                                                          <Typography variant="subtitle2" gutterBottom>
+                                                            {contentType}:
+                                                          </Typography>
+                                                          {contentDesc.schema ? (
+                                                            <Box 
+                                                              sx={{ 
+                                                                p: 1, 
+                                                                bgcolor: 'background.default',
+                                                                borderRadius: 1,
+                                                                border: '1px solid',
+                                                                borderColor: 'divider'
+                                                              }}
+                                                            >
+                                                              <pre style={{ margin: 0, fontSize: '0.75rem', overflow: 'auto' }}>
+                                                                {JSON.stringify(contentDesc.schema, null, 2)}
+                                                              </pre>
+                                                            </Box>
+                                                          ) : (
+                                                            <Typography variant="body2" color="text.secondary">
+                                                              No schema defined for this content type.
+                                                            </Typography>
+                                                          )}
+                                                        </Box>
+                                                      ))}
+                                                    </Stack>
+                                                  ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                      This response does not define any content types. It may represent a no-content response 
+                                                      or the specification may be incomplete.
+                                                    </Typography>
+                                                  )}
+                                                </AccordionDetails>
+                                              </Accordion>
+                                            ))}
+                                          </Stack>
+                                        </AccordionDetails>
+                                      </Accordion>
+                                    )}
+                                  </Stack>
+                                </AccordionDetails>
+                              </Accordion>
+                            ))}
+                          </Stack>
+                        </AccordionDetails>
+                      </Accordion>
+                    );
+                  });
+                })()}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        ))}
+      </Stack>
     );
   };
 
@@ -1024,11 +1524,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
               )}
             </Stack>
             
-            <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
-              <Chip label={`${validationResult.stats.endpoints} Endpoints`} color="primary" />
-              <Chip label={`${validationResult.stats.schemas} Schemas`} color="primary" />
-              <Chip label={`OAS ${validationResult.stats.version}`} color="primary" />
-            </Stack>
+            <ApiStatisticsPanel oasDocument={oasDocument} validationResult={validationResult} />
           </Box>
           
           {oasDocument && (
@@ -1040,8 +1536,18 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
               <Box sx={{ width: '100%' }}>
                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                   <Tabs value={tabValue} onChange={handleTabChange} aria-label="API specification tabs">
-                    <Tab label="Endpoints" id="validation-tab-0" aria-controls="validation-tabpanel-0" />
-                    <Tab label="Schemas" id="validation-tab-1" aria-controls="validation-tabpanel-1" />
+                    <Tab 
+                      icon={<ApiIcon />} 
+                      label="Endpoints" 
+                      id="validation-tab-0" 
+                      aria-controls="validation-tabpanel-0" 
+                    />
+                    <Tab 
+                      icon={<SchemaIcon />} 
+                      label="Schemas" 
+                      id="validation-tab-1" 
+                      aria-controls="validation-tabpanel-1" 
+                    />
                     <Tab 
                       icon={<HubIcon />}
                       label="Visualization" 
@@ -1062,6 +1568,7 @@ const ValidationStep: React.FC<ValidationStepProps> = ({
                     />
                     {validationResult.errors.length > 0 && (
                       <Tab 
+                        icon={<ErrorIcon />}
                         label={`Errors (${validationResult.errors.length})`} 
                         id="validation-tab-5" 
                         aria-controls="validation-tabpanel-5"
